@@ -1,0 +1,105 @@
+"""Player entity and controls."""
+
+from __future__ import annotations
+
+import math
+import pygame
+
+from hotline_miami import config
+from hotline_miami.entities.base import Entity
+from hotline_miami.rendering.weapons import draw_bat_sprite, draw_pipe_sprite
+
+
+class Player(Entity):
+    def __init__(self, x: float, y: float):
+        super().__init__(x, y, config.PLAYER_RADIUS, config.PLAYER_SPEED, config.PLAYER_HP)
+        self.punch_cooldown = 0.0
+        self.facing_angle = 0.0
+
+    def update(self, dt: float, keys, mouse_pos) -> None:
+        if not self.alive:
+            return
+
+        self.vx = 0
+        self.vy = 0
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            self.vy = -1
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            self.vy = 1
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            self.vx = -1
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            self.vx = 1
+
+        if self.vx != 0 and self.vy != 0:
+            self.vx *= 0.707
+            self.vy *= 0.707
+
+        dx = mouse_pos[0] - self.x
+        dy = mouse_pos[1] - self.y
+        self.facing_angle = math.atan2(dy, dx)
+
+        if self.attack_timer > 0:
+            self.attack_timer -= dt
+
+        if self.punch_cooldown > 0:
+            self.punch_cooldown -= dt
+
+    def punch(self, has_weapon: bool = False) -> bool:
+        if not self.alive or self.punch_cooldown > 0:
+            return False
+        self.punch_cooldown = config.PLAYER_BAT_COOLDOWN if has_weapon else config.PLAYER_PUNCH_COOLDOWN
+        self.attack_timer = 0.2
+        self.attack_radius = 8 if not has_weapon else 10
+        side = self.attack_side
+        self.attack_side *= -1
+        self.attack_angle = self.facing_angle + side * 0.7
+        self.attack_offset = (
+            pygame.Vector2(math.cos(self.attack_angle), math.sin(self.attack_angle)) * (self.radius + 10)
+        )
+        return True
+
+    def get_punch_hitbox(self) -> tuple:
+        px = self.x + math.cos(self.facing_angle) * config.PLAYER_PUNCH_RANGE
+        py = self.y + math.sin(self.facing_angle) * config.PLAYER_PUNCH_RANGE
+        return (px, py)
+
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2, has_bat: bool, has_pipe: bool) -> None:
+        if not self.alive:
+            return
+        pygame.draw.circle(screen, config.GREEN, (int(self.x - offset.x), int(self.y - offset.y)), self.radius)
+        end_x = self.x + math.cos(self.facing_angle) * (self.radius + 5)
+        end_y = self.y + math.sin(self.facing_angle) * (self.radius + 5)
+        pygame.draw.line(
+            screen,
+            config.DARK_GRAY,
+            (self.x - offset.x, self.y - offset.y),
+            (end_x - offset.x, end_y - offset.y),
+            3,
+        )
+
+        if self.attack_timer > 0:
+            progress = 1.0 - (self.attack_timer / 0.2)
+            anim_pos = pygame.Vector2(self.x, self.y) + self.attack_offset * progress
+            if not (has_bat or has_pipe):
+                pygame.draw.circle(
+                    screen,
+                    config.GREEN,
+                    (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)),
+                    self.attack_radius,
+                )
+            else:
+                swing_arc = config.PIPE_SWING_ARC if has_pipe else config.BAT_SWING_ARC
+                swing_angle = self.attack_angle + (progress - 0.5) * swing_arc
+                if has_pipe:
+                    draw_pipe_sprite(screen, anim_pos, swing_angle, offset, scale=1.1)
+                else:
+                    draw_bat_sprite(screen, anim_pos, swing_angle, offset, scale=1.1)
+        if has_bat or has_pipe:
+            hand_pos = pygame.Vector2(self.x, self.y) + (
+                pygame.Vector2(math.cos(self.facing_angle), math.sin(self.facing_angle)) * (self.radius + 6)
+            )
+            if has_pipe:
+                draw_pipe_sprite(screen, hand_pos, self.facing_angle, offset, scale=0.8)
+            else:
+                draw_bat_sprite(screen, hand_pos, self.facing_angle, offset, scale=0.8)
