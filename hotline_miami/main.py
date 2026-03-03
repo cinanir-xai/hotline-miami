@@ -9,6 +9,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (100, 100, 100)
 DARK_GRAY = (60, 60, 60)
+LIGHT_GRAY = (140, 140, 140)
 RED = (200, 50, 50)
 DARK_RED = (150, 30, 30)
 GREEN = (50, 200, 50)
@@ -16,6 +17,9 @@ BLUE = (50, 50, 200)
 YELLOW = (255, 255, 0)
 BROWN = (139, 90, 43)
 DARK_BROWN = (100, 60, 30)
+DIRT_BROWN = (101, 67, 33)
+DIRT_LIGHT = (120, 80, 45)
+DIRT_DARK = (80, 50, 25)
 
 # Screen
 SCREEN_WIDTH = 1280
@@ -468,40 +472,56 @@ class Game:
         main_x, main_y = 1000, 200
         main_w, main_h = 1200, 1000
         
-        # Outer walls (clockwise from top-left)
-        self.walls.append(Wall(main_x, main_y, main_w, 24))  # Top
-        self.walls.append(Wall(main_x, main_y + main_h - 24, main_w, 24))  # Bottom
-        self.walls.append(Wall(main_x, main_y, 24, main_h))  # Left
-        self.walls.append(Wall(main_x + main_w - 24, main_y, 24, main_h))  # Right
+        # Exterior doors for main building - positions (gap start, door width)
+        door_n = (main_x + 540, 120)   # North (top)
+        door_s = (main_x + 540, 120)   # South (bottom)
+        door_w = (main_y + 430, 140)   # West (left) - y position
+        door_e = (main_y + 430, 140)   # East (right) - y position
         
-        # External doors for main building (multiple entrances)
-        self.doors.append(Door(main_x + 300, main_y, 120, 24, hinge_left=True))  # Top entrance
-        self.doors.append(Door(main_x + 700, main_y + main_h - 24, 120, 24, hinge_left=False))  # Bottom entrance
-        self.doors.append(Door(main_x, main_y + 300, 24, 140, hinge_left=True))  # Left entrance
-        self.doors.append(Door(main_x + main_w - 24, main_y + 600, 24, 140, hinge_left=False))  # Right entrance
+        # Top wall with gap for North door
+        self.walls.append(Wall(main_x, main_y, door_n[0] - main_x, 24))  # Left of door
+        self.walls.append(Wall(door_n[0] + door_n[1], main_y, main_w - (door_n[0] - main_x) - door_n[1], 24))  # Right of door
+        self.doors.append(Door(door_n[0], main_y, door_n[1], 24, hinge_left=True))  # North door
+        
+        # Bottom wall with gap for South door
+        self.walls.append(Wall(main_x, main_y + main_h - 24, door_s[0] - main_x, 24))
+        self.walls.append(Wall(door_s[0] + door_s[1], main_y + main_h - 24, main_w - (door_s[0] - main_x) - door_s[1], 24))
+        self.doors.append(Door(door_s[0], main_y + main_h - 24, door_s[1], 24, hinge_left=False))  # South door
+        
+        # Left wall with gap for West door
+        self.walls.append(Wall(main_x, main_y, 24, door_w[0] - main_y))
+        self.walls.append(Wall(main_x, door_w[0] + door_w[1], 24, main_h - (door_w[0] - main_y) - door_w[1]))
+        self.doors.append(Door(main_x, door_w[0], 24, door_w[1], hinge_left=True))  # West door
+        
+        # Right wall with gap for East door
+        self.walls.append(Wall(main_x + main_w - 24, main_y, 24, door_e[0] - main_y))
+        self.walls.append(Wall(main_x + main_w - 24, door_e[0] + door_e[1], 24, main_h - (door_e[0] - main_y) - door_e[1]))
+        self.doors.append(Door(main_x + main_w - 24, door_e[0], 24, door_e[1], hinge_left=False))  # East door
+        
+        # Store building bounds for floor rendering
+        self.main_building = (main_x, main_y, main_w, main_h)
         
         # Internal room divisions
-        # Vertical divider (left of center)
+        # Vertical divider (left of center) with door gap
         self.walls.append(Wall(main_x + 300, main_y + 24, 24, 300))  # Top portion
         self.walls.append(Wall(main_x + 300, main_y + 500, 24, 476))  # Bottom portion
-        # Door gap between 324-500
+        self.doors.append(Door(main_x + 300, main_y + 324, 24, 176, hinge_left=True))
         
-        # Horizontal divider (middle)
+        # Horizontal divider (middle) with door gap
         self.walls.append(Wall(main_x + 24, main_y + 420, 276, 24))  # Left portion
         self.walls.append(Wall(main_x + 324, main_y + 420, 852, 24))  # Right portion
+        self.doors.append(Door(main_x + 300, main_y + 420, 140, 24, hinge_left=True))
         
-        # Vertical divider for back rooms
+        # Vertical divider for back rooms with door gap
         self.walls.append(Wall(main_x + 700, main_y + 24, 24, 250))
         self.walls.append(Wall(main_x + 700, main_y + 520, 24, 456))
+        self.doors.append(Door(main_x + 700, main_y + 300, 24, 220, hinge_left=False))
         
         # Small room in back right
         self.walls.append(Wall(main_x + 724, main_y + 300, 200, 24))
-        
-        # Internal doors for main building (multiple connectors)
-        self.doors.append(Door(main_x + 300, main_y + 324, 24, 176, hinge_left=True))
-        self.doors.append(Door(main_x + 300, main_y + 420, 140, 24, hinge_left=True))
-        self.doors.append(Door(main_x + 700, main_y + 300, 24, 220, hinge_left=False))
         self.doors.append(Door(main_x + 724, main_y + 300, 120, 24, hinge_left=True))
+        
+        # Additional internal doors
         self.doors.append(Door(main_x + 500, main_y + 420, 120, 24, hinge_left=False))
         self.doors.append(Door(main_x + 900, main_y + 420, 120, 24, hinge_left=True))
         
@@ -509,24 +529,39 @@ class Game:
         small_x, small_y = 150, 250
         small_w, small_h = 600, 500
         
-        self.walls.append(Wall(small_x, small_y, small_w, 24))
-        self.walls.append(Wall(small_x, small_y + small_h - 24, small_w, 24))
-        self.walls.append(Wall(small_x, small_y, 24, small_h))
-        self.walls.append(Wall(small_x + small_w - 24, small_y, 24, small_h))
+        # Exterior doors for small building
+        s_door_n = (small_x + 250, 100)   # North
+        s_door_s = (small_x + 250, 100)   # South
+        s_door_w = (small_y + 200, 100)   # West - y position
+        s_door_e = (small_y + 200, 100)   # East - y position
         
-        # External doors for small building
-        self.doors.append(Door(small_x + 200, small_y, 100, 24, hinge_left=True))
-        self.doors.append(Door(small_x + small_w - 24, small_y + 140, 24, 120, hinge_left=False))
-        self.doors.append(Door(small_x + 120, small_y + small_h - 24, 100, 24, hinge_left=False))
+        # Top wall with gap
+        self.walls.append(Wall(small_x, small_y, s_door_n[0] - small_x, 24))
+        self.walls.append(Wall(s_door_n[0] + s_door_n[1], small_y, small_w - (s_door_n[0] - small_x) - s_door_n[1], 24))
+        self.doors.append(Door(s_door_n[0], small_y, s_door_n[1], 24, hinge_left=True))
         
-        # Internal divider in small building
+        # Bottom wall with gap
+        self.walls.append(Wall(small_x, small_y + small_h - 24, s_door_s[0] - small_x, 24))
+        self.walls.append(Wall(s_door_s[0] + s_door_s[1], small_y + small_h - 24, small_w - (s_door_s[0] - small_x) - s_door_s[1], 24))
+        self.doors.append(Door(s_door_s[0], small_y + small_h - 24, s_door_s[1], 24, hinge_left=False))
+        
+        # Left wall with gap
+        self.walls.append(Wall(small_x, small_y, 24, s_door_w[0] - small_y))
+        self.walls.append(Wall(small_x, s_door_w[0] + s_door_w[1], 24, small_h - (s_door_w[0] - small_y) - s_door_w[1]))
+        self.doors.append(Door(small_x, s_door_w[0], 24, s_door_w[1], hinge_left=True))
+        
+        # Right wall with gap
+        self.walls.append(Wall(small_x + small_w - 24, small_y, 24, s_door_e[0] - small_y))
+        self.walls.append(Wall(small_x + small_w - 24, s_door_e[0] + s_door_e[1], 24, small_h - (s_door_e[0] - small_y) - s_door_e[1]))
+        self.doors.append(Door(small_x + small_w - 24, s_door_e[0], 24, s_door_e[1], hinge_left=False))
+        
+        # Store building bounds
+        self.small_building = (small_x, small_y, small_w, small_h)
+        
+        # Internal divider in small building with door gap
         self.walls.append(Wall(small_x + 24, small_y + 240, 250, 24))
         self.walls.append(Wall(small_x + 350, small_y + 240, 226, 24))
-        
-        # Internal doors in small building
         self.doors.append(Door(small_x + 274, small_y + 240, 76, 24, hinge_left=True))
-        self.doors.append(Door(small_x + 24, small_y + 140, 24, 100, hinge_left=True))
-        self.doors.append(Door(small_x + small_w - 24, small_y + 320, 24, 100, hinge_left=False))
         
         # Enemies in main building
         for pos in [
@@ -650,9 +685,11 @@ class Game:
         self.camera_offset.x = max(0, min(self.player.x - SCREEN_WIDTH / 2, WORLD_WIDTH - SCREEN_WIDTH))
         self.camera_offset.y = max(0, min(self.player.y - SCREEN_HEIGHT / 2, WORLD_HEIGHT - SCREEN_HEIGHT))
         
-        # Draw floor areas (visual only)
-        pygame.draw.rect(self.screen, DARK_GRAY, (1000 - self.camera_offset.x + 24, 200 - self.camera_offset.y + 24, 1200 - 48, 1000 - 48))
-        pygame.draw.rect(self.screen, DARK_GRAY, (150 - self.camera_offset.x + 24, 250 - self.camera_offset.y + 24, 600 - 48, 500 - 48))
+        # Draw dirt ground with texture detail
+        self.draw_dirt_ground()
+        
+        # Draw building floors (plank floors)
+        self.draw_building_floors()
         
         # Draw doors
         for door in self.doors:
@@ -689,6 +726,74 @@ class Game:
             self.screen.blit(over_text, rect)
         
         pygame.display.flip()
+    
+    def draw_dirt_ground(self):
+        """Draw textured dirt ground outside buildings"""
+        cx, cy = self.camera_offset.x, self.camera_offset.y
+        
+        # Base dirt color
+        dirt_rect = pygame.Rect(-cx, -cy, WORLD_WIDTH, WORLD_HEIGHT)
+        pygame.draw.rect(self.screen, DIRT_BROWN, dirt_rect)
+        
+        # Draw dirt patches and texture
+        seed = 42
+        random.seed(seed)
+        for _ in range(400):
+            x = random.randint(0, WORLD_WIDTH)
+            y = random.randint(0, WORLD_HEIGHT)
+            size = random.randint(3, 12)
+            color = random.choice([DIRT_LIGHT, DIRT_DARK])
+            pygame.draw.circle(self.screen, color, (int(x - cx), int(y - cy)), size)
+        
+        # Draw small pebbles/stones
+        for _ in range(150):
+            x = random.randint(0, WORLD_WIDTH)
+            y = random.randint(0, WORLD_HEIGHT)
+            size = random.randint(2, 4)
+            pygame.draw.circle(self.screen, (90, 85, 80), (int(x - cx), int(y - cy)), size)
+        
+        # Draw some grass tufts
+        for _ in range(80):
+            x = random.randint(0, WORLD_WIDTH)
+            y = random.randint(0, WORLD_HEIGHT)
+            color = (60, 80, 40)
+            for i in range(3):
+                ox = random.randint(-5, 5)
+                oy = random.randint(-5, 5)
+                pygame.draw.line(self.screen, color, (x - cx, y - cy), (x + ox - cx, y + oy - cy), 2)
+        
+        random.seed()
+    
+    def draw_building_floors(self):
+        """Draw gray plank floor inside buildings"""
+        cx, cy = self.camera_offset.x, self.camera_offset.y
+        
+        # Main building floor
+        mx, my, mw, mh = self.main_building
+        floor_rect = pygame.Rect(mx + 24 - cx, my + 24 - cy, mw - 48, mh - 48)
+        pygame.draw.rect(self.screen, DARK_GRAY, floor_rect)
+        
+        # Draw planks (horizontal lines)
+        plank_spacing = 20
+        for y in range(my + 24, my + mh - 24, plank_spacing):
+            pygame.draw.line(self.screen, GRAY, (mx + 24 - cx, y - cy), (mx + mw - 24 - cx, y - cy), 1)
+        
+        # Draw vertical plank dividers
+        for x in range(mx + 24, mx + mw - 24, 80):
+            pygame.draw.line(self.screen, LIGHT_GRAY, (x - cx, my + 24 - cy), (x - cx, my + mh - 24 - cy), 2)
+        
+        # Small building floor
+        sx, sy, sw, sh = self.small_building
+        floor_rect2 = pygame.Rect(sx + 24 - cx, sy + 24 - cy, sw - 48, sh - 48)
+        pygame.draw.rect(self.screen, DARK_GRAY, floor_rect2)
+        
+        # Draw planks
+        for y in range(sy + 24, sy + sh - 24, plank_spacing):
+            pygame.draw.line(self.screen, GRAY, (sx + 24 - cx, y - cy), (sx + sw - 24 - cx, y - cy), 1)
+        
+        # Draw vertical plank dividers
+        for x in range(sx + 24, sx + sw - 24, 80):
+            pygame.draw.line(self.screen, LIGHT_GRAY, (x - cx, sy + 24 - cy), (x - cx, sy + sh - 24 - cy), 2)
 
 
 if __name__ == "__main__":
