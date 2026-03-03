@@ -205,7 +205,7 @@ class Player(Entity):
         # Draw arms (in front of body)
         self._draw_arms(surface, arm_offset, behind=False)
         
-        # Draw attack range indicator when attacking
+        # Draw attack impact circle when attacking
         if self.is_attacking:
             self._draw_attack_indicator(surface, pos)
         
@@ -214,20 +214,24 @@ class Player(Entity):
             self._draw_aim_indicator(surface, pos)
     
     def _draw_attack_indicator(self, surface: pygame.Surface, screen_pos: Vector2):
-        """Draw a subtle attack indicator."""
+        """Draw an impact circle where the punch lands."""
         angle_rad = math.radians(self.attack_angle)
-        end_x = screen_pos.x + math.cos(angle_rad) * PLAYER_ATTACK_RANGE
-        end_y = screen_pos.y + math.sin(angle_rad) * PLAYER_ATTACK_RANGE
+        impact_x = screen_pos.x + math.cos(angle_rad) * PLAYER_ATTACK_RANGE
+        impact_y = screen_pos.y + math.sin(angle_rad) * PLAYER_ATTACK_RANGE
         
-        # Very subtle line
-        pygame.draw.line(surface, (255, 255, 255, 30), (screen_pos.x, screen_pos.y), (end_x, end_y), 1)
+        # Impact circle with soft glow
+        glow_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
+        pygame.draw.circle(glow_surf, (255, 230, 180, 70), (20, 20), 16)
+        pygame.draw.circle(glow_surf, (255, 240, 200, 120), (20, 20), 10)
+        pygame.draw.circle(glow_surf, (255, 255, 255, 180), (20, 20), 6, 2)
+        surface.blit(glow_surf, (impact_x - 20, impact_y - 20))
 
     def _draw_aim_indicator(self, surface: pygame.Surface, screen_pos: Vector2):
         """Draw a subtle aim indicator when idle."""
         angle_rad = math.radians(angle_from_vec(self.facing))
-        end_x = screen_pos.x + math.cos(angle_rad) * 20
-        end_y = screen_pos.y + math.sin(angle_rad) * 20
-        pygame.draw.line(surface, (255, 255, 255, 20), (screen_pos.x, screen_pos.y), (end_x, end_y), 1)
+        end_x = screen_pos.x + math.cos(angle_rad) * 18
+        end_y = screen_pos.y + math.sin(angle_rad) * 18
+        pygame.draw.circle(surface, (255, 255, 255, 30), (int(end_x), int(end_y)), 2)
     
     def _get_arm_offsets(self, pos: Vector2, shoulder_y: float) -> dict:
         """Calculate arm positions based on facing direction."""

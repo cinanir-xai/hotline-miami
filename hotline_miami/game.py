@@ -56,34 +56,62 @@ class Game:
     def _build_house(self):
         """Build a house with multiple rooms."""
         # Main room (south entrance)
-        main_room = SimpleRoom(Vector2(0, -50), width=700, height=500, door_width=140)
+        main_room = SimpleRoom(Vector2(0, -50), width=900, height=550, door_width=160)
         self.rooms.append(main_room)
         
-        # East room
-        east_room = SimpleRoom(Vector2(450, -50), width=500, height=400, door_width=100)
+        # East wing
+        east_room = SimpleRoom(Vector2(550, -50), width=600, height=450, door_width=120)
         self.rooms.append(east_room)
         
+        # Far east room
+        east_far = SimpleRoom(Vector2(950, -50), width=400, height=350, door_width=100)
+        self.rooms.append(east_far)
+        
         # North room (connected to main)
-        north_room = SimpleRoom(Vector2(0, -400), width=600, height=400, door_width=120)
+        north_room = SimpleRoom(Vector2(0, -500), width=700, height=450, door_width=140)
         self.rooms.append(north_room)
         
+        # Northwest room
+        northwest_room = SimpleRoom(Vector2(-500, -450), width=500, height=350, door_width=100)
+        self.rooms.append(northwest_room)
+        
         # West room
-        west_room = SimpleRoom(Vector2(-450, -50), width=450, height=400, door_width=100)
+        west_room = SimpleRoom(Vector2(-550, -50), width=550, height=450, door_width=120)
         self.rooms.append(west_room)
+        
+        # Southwest room
+        southwest_room = SimpleRoom(Vector2(-550, 250), width=450, height=300, door_width=90)
+        self.rooms.append(southwest_room)
+        
+        # Small building to the left (separate)
+        small_building = SimpleRoom(Vector2(-1200, -100), width=350, height=300, door_width=80)
+        self.rooms.append(small_building)
     
     def _create_doors(self):
         """Create physics-based doors between rooms."""
         # Main entrance (south)
-        self.doors.append(Door(Vector2(0, 200), is_horizontal=True, width=120))
+        self.doors.append(Door(Vector2(0, 225), is_horizontal=True, width=140))
         
         # Main to East
-        self.doors.append(Door(Vector2(350, -50), is_horizontal=False, width=100))
+        self.doors.append(Door(Vector2(450, -50), is_horizontal=False, width=120))
+        
+        # East to Far East
+        self.doors.append(Door(Vector2(750, -50), is_horizontal=False, width=90))
         
         # Main to North
-        self.doors.append(Door(Vector2(0, -250), is_horizontal=True, width=100))
+        self.doors.append(Door(Vector2(0, -325), is_horizontal=True, width=120))
+        
+        # North to Northwest
+        self.doors.append(Door(Vector2(-250, -450), is_horizontal=False, width=90))
         
         # Main to West
-        self.doors.append(Door(Vector2(-350, -50), is_horizontal=False, width=100))
+        self.doors.append(Door(Vector2(-450, -50), is_horizontal=False, width=120))
+        
+        # West to Southwest
+        self.doors.append(Door(Vector2(-550, 100), is_horizontal=True, width=80))
+        
+        # Small building entrance
+        self.doors.append(Door(Vector2(-1200, 50), is_horizontal=True, width=70))
     
     def _on_player_death(self, corpse: Corpse):
         """Handle player death."""
@@ -100,8 +128,8 @@ class Game:
         import random
         for _ in range(count):
             # Spawn enemies inside the house (north of entrance)
-            x = random.uniform(-300, 300)
-            y = random.uniform(-300, 100)
+            x = random.uniform(-400, 600)
+            y = random.uniform(-600, 100)
             enemy = Enemy(x, y)
             enemy.set_target(self.player)
             enemy.set_attack_callback(self._enemy_attack)
@@ -115,6 +143,24 @@ class Game:
         # Apply damage if in range at attack moment
         if enemy.position.distance_to(self.player.position) <= 55:
             self.player.take_damage(1)
+    
+    def _check_player_attack(self, enemy: Enemy):
+        """Check if player attack hits an enemy."""
+        if not self.player.is_attacking:
+            return
+        # Attack hit happens mid-punch
+        attack_progress = 1.0 - (self.player.attack_timer / 0.25)
+        if not (0.4 <= attack_progress <= 0.6):
+            return
+        
+        # Compute hit position in front of player
+        hit_pos = self.player.position + self.player.facing * 50
+        if enemy.position.distance_to(hit_pos) <= 35:
+            # Apply damage once per attack
+            if not getattr(enemy, "last_hit_time", None) or self.player.attack_timer > enemy.last_hit_time:
+                enemy.take_damage(1)
+                enemy.last_hit_time = self.player.attack_timer
+                self.particle_system.spawn_punch_effect(hit_pos.x, hit_pos.y, self.player.attack_angle)
 
     def run(self):
         """Main game loop."""
@@ -151,9 +197,11 @@ class Game:
         mouse_clicked = self.input_handler.is_mouse_just_pressed(0)
         
         # Update player
+        prev_pos = self.player.position.copy()
         self.player.handle_input(keys, self.input_handler.mouse_pos, 
                                  mouse_clicked, self.camera.get_offset())
         self.player.update(dt)
+        self._resolve_collisions(self.player, prev_pos)
         
         # Update camera
         self.camera.update(dt)
@@ -166,7 +214,10 @@ class Game:
         # Update enemies
         for enemy in self.enemies:
             if enemy.alive:
+                prev_enemy_pos = enemy.position.copy()
                 enemy.update(dt)
+                self._resolve_collisions(enemy, prev_enemy_pos)
+                self._check_player_attack(enemy)
         
         # Update corpses
         for corpse in self.corpses:
@@ -242,6 +293,25 @@ class Game:
             draw_health(self.screen, self.player.health, self.player.max_health, Vector2(SCREEN_WIDTH - 10, 10))
         
 
+    def _resolve_collisions(self, entity, prev_pos: Vector2):
+        """Resolve collisions with walls and doors."""
+        collision_rects = []
+        for room in self.rooms:
+            collision_rects.extend(room.get_collision_rects())
+        for door in self.doors:
+            door_rect = door.get_collision_rect()
+            if door_rect.width > 0:
+                collision_rects.append(door_rect)
+        
+        # Check collision against each rect
+        entity_rect = entity.rect
+        for rect in collision_rects:
+            if entity_rect.colliderect(rect):
+                # Revert to previous position on collision
+                entity.position = prev_pos.copy()
+                entity.velocity = Vector2(0, 0)
+                break
+    
     def _draw_house_floor(self, camera_offset: Vector2):
         """Draw floor inside the house rooms."""
         floor_color = (140, 120, 100)  # Wooden floor
