@@ -2,12 +2,13 @@
 
 import pygame
 import sys
+import math
+import random
 from pygame.math import Vector2
 
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GAME_TITLE, Colors
-import math
-from core import Camera, InputHandler, GroundRenderer, ParticleSystem, draw_health, SimpleRoom
-from entities import Player, Enemy
+from core import Camera, InputHandler, GroundRenderer, ParticleSystem, draw_health, SimpleRoom, Door
+from entities import Player, Enemy, Corpse
 
 
 class Game:
@@ -30,32 +31,81 @@ class Game:
         self.ground = GroundRenderer(seed=42)
         self.particle_system = ParticleSystem()
         
-        # Initialize entities
-        self.player = Player(0, 0)
+        # Map - player starts outside, south of the house
+        self.player = Player(0, 250)  # Start below the house
         self.player.set_punch_callback(self.particle_system.spawn_punch_effect)
+        self.player.set_death_callback(self._on_player_death)
         self.camera.set_target(self.player)
         
-        # Map
-        self.room = SimpleRoom(self.player.position, width=900, height=600, door_width=140)
+        # Create multiple rooms (house layout)
+        self.rooms = []
+        self._build_house()
         
-        # Entity lists for future expansion
+        # Doors
+        self.doors = []
+        self._create_doors()
+        
+        # Corpses (persist throughout level)
+        self.corpses = []
+        
+        # Entity lists
         self.entities = []
         self.enemies = []
         self._spawn_enemies(5)
         
+    def _build_house(self):
+        """Build a house with multiple rooms."""
+        # Main room (south entrance)
+        main_room = SimpleRoom(Vector2(0, -50), width=700, height=500, door_width=140)
+        self.rooms.append(main_room)
+        
+        # East room
+        east_room = SimpleRoom(Vector2(450, -50), width=500, height=400, door_width=100)
+        self.rooms.append(east_room)
+        
+        # North room (connected to main)
+        north_room = SimpleRoom(Vector2(0, -400), width=600, height=400, door_width=120)
+        self.rooms.append(north_room)
+        
+        # West room
+        west_room = SimpleRoom(Vector2(-450, -50), width=450, height=400, door_width=100)
+        self.rooms.append(west_room)
+    
+    def _create_doors(self):
+        """Create physics-based doors between rooms."""
+        # Main entrance (south)
+        self.doors.append(Door(Vector2(0, 200), is_horizontal=True, width=120))
+        
+        # Main to East
+        self.doors.append(Door(Vector2(350, -50), is_horizontal=False, width=100))
+        
+        # Main to North
+        self.doors.append(Door(Vector2(0, -250), is_horizontal=True, width=100))
+        
+        # Main to West
+        self.doors.append(Door(Vector2(-350, -50), is_horizontal=False, width=100))
+    
+    def _on_player_death(self, corpse: Corpse):
+        """Handle player death."""
+        self.particle_system.spawn_blood_explosion(self.player.position.x, self.player.position.y)
+        self.corpses.append(corpse)
+    
+    def _on_enemy_death(self, corpse: Corpse):
+        """Handle enemy death."""
+        self.particle_system.spawn_blood_explosion(corpse.position.x, corpse.position.y)
+        self.corpses.append(corpse)
+
     def _spawn_enemies(self, count: int):
         """Spawn enemies around the player."""
         import random
         for _ in range(count):
-            angle = random.uniform(0, 360)
-            distance = random.uniform(220, 420)
-            offset = Vector2(
-                math.cos(math.radians(angle)) * distance,
-                math.sin(math.radians(angle)) * distance
-            )
-            enemy = Enemy(self.player.position.x + offset.x, self.player.position.y + offset.y)
+            # Spawn enemies inside the house (north of entrance)
+            x = random.uniform(-300, 300)
+            y = random.uniform(-300, 100)
+            enemy = Enemy(x, y)
             enemy.set_target(self.player)
             enemy.set_attack_callback(self._enemy_attack)
+            enemy.set_death_callback(self._on_enemy_death)
             self.enemies.append(enemy)
 
     def _enemy_attack(self, enemy: Enemy):
@@ -118,6 +168,14 @@ class Game:
             if enemy.alive:
                 enemy.update(dt)
         
+        # Update corpses
+        for corpse in self.corpses:
+            corpse.update(dt)
+        
+        # Update doors
+        for door in self.doors:
+            door.update(dt, self.player, self.enemies)
+        
         # Remove dead entities
         self.entities = [e for e in self.entities if e.alive]
         self.enemies = [e for e in self.enemies if e.alive]
@@ -136,16 +194,31 @@ class Game:
         # Draw ground
         self.ground.draw(self.screen, camera_offset)
         
+        # Draw house floor (inside rooms)
+        self._draw_house_floor(camera_offset)
+        
         # Draw room walls
-        self.room.draw(self.screen, camera_offset)
+        for room in self.rooms:
+            room.draw(self.screen, camera_offset)
+        
+        # Draw doors
+        for door in self.doors:
+            door.draw(self.screen, camera_offset)
+        
+        # Draw corpses (under everything)
+        for corpse in self.corpses:
+            corpse.draw(self.screen, camera_offset)
         
         # Draw entities (sorted by Y for depth)
-        all_entities = [self.player] + self.entities + self.enemies
+        all_entities = []
+        if self.player.alive:
+            all_entities.append(self.player)
+        all_entities.extend([e for e in self.entities if e.alive])
+        all_entities.extend([e for e in self.enemies if e.alive])
         all_entities.sort(key=lambda e: e.position.y)
         
         for entity in all_entities:
-            if entity.alive:
-                entity.draw(self.screen, camera_offset)
+            entity.draw(self.screen, camera_offset)
         
         # Draw particles/effects
         self.particle_system.draw(self.screen, camera_offset)
@@ -165,8 +238,30 @@ class Game:
         self.screen.blit(fps_text, (10, 10))
         
         # Player health hearts (top right)
-        draw_health(self.screen, self.player.health, self.player.max_health, Vector2(SCREEN_WIDTH - 10, 10))
+        if self.player.alive:
+            draw_health(self.screen, self.player.health, self.player.max_health, Vector2(SCREEN_WIDTH - 10, 10))
         
+
+    def _draw_house_floor(self, camera_offset: Vector2):
+        """Draw floor inside the house rooms."""
+        floor_color = (140, 120, 100)  # Wooden floor
+        for room in self.rooms:
+            # Get room bounds
+            half_w = room.width // 2
+            half_h = room.height // 2
+            rect = pygame.Rect(
+                room.center.x - half_w - camera_offset.x,
+                room.center.y - half_h - camera_offset.y,
+                room.width,
+                room.height
+            )
+            pygame.draw.rect(self.screen, floor_color, rect)
+            # Floor planks texture
+            for i in range(0, room.height, 20):
+                y = room.center.y - half_h + i - camera_offset.y
+                pygame.draw.line(self.screen, (120, 100, 80),
+                               (room.center.x - half_w - camera_offset.x, y),
+                               (room.center.x + half_w - camera_offset.x, y), 1)
 
 
 def main():

@@ -6,6 +6,7 @@ from pygame.math import Vector2
 from typing import Optional, Callable
 
 from .entity import Entity
+from .corpse import Corpse
 from config import (
     PLAYER_SIZE, PLAYER_SPEED, PLAYER_ACCEL, PLAYER_DECEL,
     PLAYER_ATTACK_RANGE, PLAYER_ATTACK_COOLDOWN, PLAYER_ATTACK_DAMAGE,
@@ -34,6 +35,7 @@ class Player(Entity):
         self.attack_hand = "right"  # alternates between right and left
         self.attack_angle = 0.0
         self.on_punch_callback: Optional[Callable] = None
+        self.on_death_callback: Optional[Callable] = None
         
         # Animation
         self.bob_offset = 0.0
@@ -49,10 +51,36 @@ class Player(Entity):
         self.shoulder_height = 20
         self.neck_offset = 3
         self.hand_radius = 4
+        self.jacket_color = Colors.JACKET_BROWN
+        self.shirt_color = Colors.SHIRT_WHITE
         
     def set_punch_callback(self, callback: Callable):
         """Set callback for punch effects."""
         self.on_punch_callback = callback
+        
+    def set_death_callback(self, callback: Callable):
+        """Set callback for when player dies."""
+        self.on_death_callback = callback
+        
+    def take_damage(self, amount: float) -> bool:
+        """Take damage and return True if killed."""
+        self.health -= amount
+        if self.health <= 0:
+            self.health = 0
+            self.alive = False
+            self.on_death()
+            return True
+        return False
+    
+    def on_death(self):
+        """Called when player dies."""
+        if self.on_death_callback:
+            corpse = Corpse(
+                self.position.x, self.position.y,
+                self.facing, self.jacket_color, self.shirt_color,
+                is_player=True
+            )
+            self.on_death_callback(corpse)
         
     def handle_input(self, keys, mouse_pos: Vector2, mouse_clicked: bool, 
                      camera_offset: Vector2):

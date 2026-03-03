@@ -6,5 +6,6 @@ from .ground import GroundRenderer
 from .particles import ParticleSystem, Particle, PunchEffect
 from .ui import draw_health
 from .walls import SimpleRoom
+from .doors import Door
 
-__all__ = ['Camera', 'InputHandler', 'GroundRenderer', 'ParticleSystem', 'Particle', 'PunchEffect', 'draw_health', 'SimpleRoom']
+__all__ = ['Camera', 'InputHandler', 'GroundRenderer', 'ParticleSystem', 'Particle', 'PunchEffect', 'draw_health', 'SimpleRoom', 'Door']

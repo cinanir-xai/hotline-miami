@@ -140,6 +140,35 @@ class ParticleSystem:
                 random.uniform(0.5, 1.0), color, random.uniform(2, 5)
             ))
     
+    def spawn_blood_explosion(self, x: float, y: float, amount: int = 15):
+        """Spawn blood particles on death."""
+        for _ in range(amount):
+            angle = random.uniform(0, 360)
+            speed = random.uniform(40, 120)
+            vel = Vector2(
+                math.cos(math.radians(angle)) * speed,
+                math.sin(math.radians(angle)) * speed
+            )
+            color = random.choice([(180, 30, 30), (150, 20, 20), (120, 10, 10)])
+            size = random.uniform(3, 7)
+            self.particles.append(Particle(
+                x, y, vel,
+                random.uniform(0.4, 0.8), color, size
+            ))
+        
+        # Add some blood splatter spots that stay longer
+        for _ in range(8):
+            angle = random.uniform(0, 360)
+            dist = random.uniform(10, 35)
+            vel = Vector2(
+                math.cos(math.radians(angle)) * dist * 2,
+                math.sin(math.radians(angle)) * dist * 2
+            )
+            self.particles.append(Particle(
+                x, y, vel,
+                random.uniform(1.0, 2.0), (100, 10, 10), random.uniform(4, 8)
+            ))
+    
     def update(self, dt: float):
         """Update all particles and effects."""
         for p in self.particles:

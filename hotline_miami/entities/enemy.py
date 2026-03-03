@@ -6,6 +6,7 @@ import random
 from pygame.math import Vector2
 
 from .entity import Entity
+from .corpse import Corpse
 from config import (
     ENEMY_SIZE, ENEMY_SPEED, ENEMY_ACCEL, ENEMY_DECEL,
     ENEMY_ATTACK_RANGE, ENEMY_ATTACK_COOLDOWN, ENEMY_ATTACK_DAMAGE,
@@ -35,6 +36,7 @@ class Enemy(Entity):
         self.attack_angle = 0.0
         self.attack_hand = "right"
         self.on_attack_callback = None
+        self.on_death_callback = None  # Called when enemy dies
         
         # Animation
         self.bob_offset = 0.0
@@ -61,6 +63,30 @@ class Enemy(Entity):
     def set_attack_callback(self, callback):
         """Set callback for dealing damage."""
         self.on_attack_callback = callback
+    
+    def set_death_callback(self, callback):
+        """Set callback for when enemy dies (returns corpse)."""
+        self.on_death_callback = callback
+    
+    def take_damage(self, amount: float) -> bool:
+        """Take damage and return True if killed."""
+        self.health -= amount
+        if self.health <= 0:
+            self.health = 0
+            self.alive = False
+            self.on_death()
+            return True
+        return False
+    
+    def on_death(self):
+        """Called when enemy dies."""
+        if self.on_death_callback:
+            corpse = Corpse(
+                self.position.x, self.position.y,
+                self.facing, self.jacket_color, self.shirt_color,
+                is_player=False
+            )
+            self.on_death_callback(corpse)
     
     def update(self, dt: float):
         """Update enemy behavior and animation."""
