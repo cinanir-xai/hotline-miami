@@ -38,7 +38,7 @@ PLAYER_SPEED = 220
 PLAYER_HP = 5
 PLAYER_PUNCH_RANGE = 50
 PLAYER_PUNCH_COOLDOWN = 0.4
-PLAYER_BAT_COOLDOWN = 1.5
+PLAYER_BAT_COOLDOWN = 0.75
 
 # Weapons
 BAT_DAMAGE = 2
@@ -47,6 +47,13 @@ BAT_RANGE = 85
 BAT_DURABILITY = 5
 BAT_THROW_CHARGE = 1.5
 BAT_THROW_SPEED = 520
+BAT_GROUND_SCALE = 1.4
+BAT_SWING_ARC = math.pi * 0.9
+BAT_SWING_LENGTH = 32
+BAT_SWING_WIDTH = 6
+BAT_PROJECTILE_SPIN = 10.0
+BAT_PROJECTILE_LIFE = 1.6
+BAT_IMPACT_FLASH = 0.18
 BAT_PICKUP_RANGE = 22
 BAT_SPAWN_CHANCE = 0.25
 
@@ -76,6 +83,38 @@ def line_segments_intersect(p1: pygame.Vector2, p2: pygame.Vector2, q1: pygame.V
 def angle_difference(a: float, b: float) -> float:
     diff = (a - b + math.pi) % (2 * math.pi) - math.pi
     return diff
+
+
+def draw_bat_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: float, offset: pygame.Vector2, scale: float = 1.0):
+    """Draw a cleaner bat sprite using a shaft + barrel + grip."""
+    length = 28 * scale
+    barrel = 10 * scale
+    grip = 6 * scale
+    thickness = 6 * scale
+
+    direction = pygame.Vector2(math.cos(angle), math.sin(angle))
+    perp = pygame.Vector2(-direction.y, direction.x)
+
+    shaft_start = center - direction * (length * 0.6)
+    shaft_end = center + direction * (length * 0.3)
+
+    # Shaft
+    shaft_points = [
+        (shaft_start + perp * (thickness * 0.35)),
+        (shaft_start - perp * (thickness * 0.35)),
+        (shaft_end - perp * (thickness * 0.35)),
+        (shaft_end + perp * (thickness * 0.35)),
+    ]
+    pygame.draw.polygon(screen, BROWN, [(p.x - offset.x, p.y - offset.y) for p in shaft_points])
+
+    # Barrel
+    barrel_center = center + direction * (length * 0.55)
+    barrel_radius = barrel * 0.55
+    pygame.draw.circle(screen, DARK_BROWN, (int(barrel_center.x - offset.x), int(barrel_center.y - offset.y)), int(barrel_radius))
+
+    # Grip
+    grip_center = center - direction * (length * 0.75)
+    pygame.draw.circle(screen, DARK_BROWN, (int(grip_center.x - offset.x), int(grip_center.y - offset.y)), int(grip * 0.4))
 
 
 class Blood:
@@ -122,10 +161,7 @@ class BatItem:
         self.durability = durability
     
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
-        start = (self.x - 8 - offset.x, self.y - offset.y)
-        end = (self.x + 12 - offset.x, self.y + 2 - offset.y)
-        pygame.draw.line(screen, BROWN, start, end, 4)
-        pygame.draw.circle(screen, DARK_BROWN, (int(self.x + 12 - offset.x), int(self.y + 2 - offset.y)), 5)
+        draw_bat_sprite(screen, pygame.Vector2(self.x, self.y), 0.35, offset, scale=BAT_GROUND_SCALE)
 
 
 class BatProjectile:
@@ -135,28 +171,28 @@ class BatProjectile:
         self.velocity = velocity
         self.durability = durability
         self.alive = True
-        self.life = 2.0
+        self.life = BAT_PROJECTILE_LIFE
+        self.spin = 0.0
     
     def update(self, dt: float):
         if not self.alive:
             return
         self.x += self.velocity.x * dt
         self.y += self.velocity.y * dt
+        self.spin += BAT_PROJECTILE_SPIN * dt
         self.life -= dt
         if self.life <= 0:
             self.alive = False
     
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
-        start = (self.x - 10 - offset.x, self.y - offset.y)
-        end = (self.x + 10 - offset.x, self.y - offset.y)
-        pygame.draw.line(screen, BROWN, start, end, 4)
+        draw_bat_sprite(screen, pygame.Vector2(self.x, self.y), self.spin, offset, scale=1.0)
 
 
 class BatBreakPiece:
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
-        self.offset = pygame.Vector2(random.uniform(-8, 8), random.uniform(-8, 8))
+        self.offset = pygame.Vector2(random.uniform(-10, 10), random.uniform(-10, 10))
         self.life = 1.0
     
     def update(self, dt: float):
@@ -292,13 +328,14 @@ class Player(Entity):
         if self.attack_timer > 0:
             progress = 1.0 - (self.attack_timer / 0.2)
             anim_pos = pygame.Vector2(self.x, self.y) + self.attack_offset * progress
-            pygame.draw.circle(screen, GREEN, (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)), self.attack_radius)
-            if has_bat:
-                end = anim_pos + pygame.Vector2(math.cos(self.attack_angle), math.sin(self.attack_angle)) * 18
-                pygame.draw.line(screen, BROWN, (anim_pos.x - offset.x, anim_pos.y - offset.y), (end.x - offset.x, end.y - offset.y), 4)
+            if not has_bat:
+                pygame.draw.circle(screen, GREEN, (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)), self.attack_radius)
+            else:
+                swing_angle = self.attack_angle + (progress - 0.5) * BAT_SWING_ARC
+                draw_bat_sprite(screen, anim_pos, swing_angle, offset, scale=1.1)
         if has_bat:
             hand_pos = pygame.Vector2(self.x, self.y) + pygame.Vector2(math.cos(self.facing_angle), math.sin(self.facing_angle)) * (self.radius + 6)
-            pygame.draw.line(screen, BROWN, (hand_pos.x - offset.x, hand_pos.y - offset.y), (hand_pos.x + math.cos(self.facing_angle) * 14 - offset.x, hand_pos.y + math.sin(self.facing_angle) * 14 - offset.y), 4)
+            draw_bat_sprite(screen, hand_pos, self.facing_angle, offset, scale=0.8)
 
 
 class Enemy(Entity):
@@ -398,13 +435,14 @@ class Enemy(Entity):
         if self.attack_timer > 0:
             progress = 1.0 - (self.attack_timer / 0.2)
             anim_pos = pygame.Vector2(self.x, self.y) + self.attack_offset * progress
-            pygame.draw.circle(screen, ORANGE, (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)), self.attack_radius)
-            if self.has_bat:
-                end = anim_pos + pygame.Vector2(math.cos(self.attack_angle), math.sin(self.attack_angle)) * 18
-                pygame.draw.line(screen, BROWN, (anim_pos.x - offset.x, anim_pos.y - offset.y), (end.x - offset.x, end.y - offset.y), 4)
+            if not self.has_bat:
+                pygame.draw.circle(screen, ORANGE, (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)), self.attack_radius)
+            else:
+                swing_angle = self.attack_angle + (progress - 0.5) * BAT_SWING_ARC
+                draw_bat_sprite(screen, anim_pos, swing_angle, offset, scale=1.0)
         if self.has_bat:
             hand_pos = pygame.Vector2(self.x, self.y) + pygame.Vector2(math.cos(self.attack_angle), math.sin(self.attack_angle)) * (self.radius + 6)
-            pygame.draw.line(screen, BROWN, (hand_pos.x - offset.x, hand_pos.y - offset.y), (hand_pos.x + math.cos(self.attack_angle) * 14 - offset.x, hand_pos.y + math.sin(self.attack_angle) * 14 - offset.y), 4)
+            draw_bat_sprite(screen, hand_pos, self.attack_angle, offset, scale=0.7)
         # Health indicator
         hp_pct = self.hp / ENEMY_HP
         pygame.draw.rect(screen, BLACK, (int(self.x - 10 - offset.x), int(self.y - self.radius - 8 - offset.y), 20, 4))
@@ -595,6 +633,7 @@ class Game:
         self.throw_charge = 0.0
         self.throw_charging = False
         self.camera_offset = pygame.Vector2(0, 0)
+        self.impact_flashes: List[float] = []
         
         self.create_map()
     
@@ -772,6 +811,19 @@ class Game:
             is_bat = self.player_has_bat
             if is_bat:
                 self.apply_bat_attack(self.player.x, self.player.y, punch_angle, source_is_player=True)
+                # Bat attacks open doors without durability loss
+                for door in self.doors:
+                    if door.is_open:
+                        continue
+                    door_center = pygame.Vector2(door.x + door.width / 2, door.y + door.height / 2)
+                    to_door = door_center - pygame.Vector2(self.player.x, self.player.y)
+                    if to_door.length() > DOOR_PUNCH_RANGE:
+                        continue
+                    door_angle = math.atan2(to_door.y, to_door.x)
+                    if abs(angle_difference(door_angle, punch_angle)) > DOOR_PUNCH_ANGLE / 2:
+                        continue
+                    door.force_open()
+                    break
                 return
             
             for enemy in self.enemies:
@@ -781,6 +833,7 @@ class Game:
                     dist = math.sqrt(dx * dx + dy * dy)
                     if dist < enemy.radius + 15:  # Hit radius
                         enemy.hp -= 1
+                        self.impact_flashes.append(BAT_IMPACT_FLASH)
                         if enemy.hp <= 0:
                             enemy.alive = False
                             self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
@@ -847,6 +900,7 @@ class Game:
                     dist = math.hypot(enemy.x - projectile.x, enemy.y - projectile.y)
                     if dist <= enemy.radius + 8:
                         enemy.hp -= BAT_DAMAGE
+                        self.impact_flashes.append(BAT_IMPACT_FLASH)
                         projectile.durability -= 1
                         projectile.alive = False
                         if enemy.hp <= 0:
@@ -864,6 +918,11 @@ class Game:
             piece.update(dt)
             if piece.life <= 0:
                 self.bat_breaks.remove(piece)
+        
+        # Update impact flashes
+        for i in range(len(self.impact_flashes)):
+            self.impact_flashes[i] -= dt
+        self.impact_flashes = [t for t in self.impact_flashes if t > 0]
         
         # Check door pushing
         for door in self.doors:
@@ -884,6 +943,7 @@ class Game:
                     self.apply_bat_attack(enemy.x, enemy.y, facing, source_is_player=False, attacker=enemy)
                 else:
                     self.player.hp -= 1
+                    self.impact_flashes.append(BAT_IMPACT_FLASH)
                 if self.player.hp <= 0 and self.player.alive:
                     self.player.alive = False
                     self.corpses.append(Corpse(self.player.x, self.player.y, self.player.radius, True))
@@ -938,6 +998,8 @@ class Game:
                     self.corpses.append(Corpse(target.x, target.y, target.radius, is_player))
                     if isinstance(target, Enemy) and target.has_bat:
                         self.bat_items.append(BatItem(target.x, target.y, target.bat_durability))
+        if hit_any:
+            self.impact_flashes.append(BAT_IMPACT_FLASH)
         if source_is_player and self.player_has_bat and hit_any:
             self.player_bat_durability -= 1
             if self.player_bat_durability <= 0:
@@ -948,7 +1010,6 @@ class Game:
             if attacker.bat_durability <= 0:
                 attacker.has_bat = False
                 self.spawn_bat_break(attacker_x, attacker_y)
-                self.bat_items.append(BatItem(attacker_x, attacker_y, BAT_DURABILITY))
 
     def draw(self):
         self.screen.fill(BLACK)
@@ -1010,6 +1071,13 @@ class Game:
             over_text = over_font.render("GAME OVER", True, RED)
             rect = over_text.get_rect(center=(SCREEN_WIDTH/2, SCREEN_HEIGHT/2))
             self.screen.blit(over_text, rect)
+        
+        # Impact flash feedback
+        if self.impact_flashes:
+            intensity = min(180, int(255 * max(self.impact_flashes)))
+            flash = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+            flash.fill((255, 255, 255, intensity))
+            self.screen.blit(flash, (0, 0))
         
         pygame.display.flip()
     
