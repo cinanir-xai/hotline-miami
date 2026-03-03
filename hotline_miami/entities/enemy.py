@@ -55,10 +55,16 @@ class Enemy(Entity):
                         break
             self.can_see_player = not blocked
 
+        attack_range = config.BAT_RANGE if (self.has_bat or self.has_pipe) else config.ENEMY_PUNCH_RANGE
+        stop_range = attack_range * 0.9
+
         if dist < config.ENEMY_DETECTION_RANGE and player.alive and self.can_see_player:
-            if dist > 0:
+            if dist > stop_range and dist > 0:
                 self.vx = dx / dist
                 self.vy = dy / dist
+            else:
+                self.vx = 0.0
+                self.vy = 0.0
         else:
             self.wander_timer -= dt
             if self.wander_timer <= 0:
@@ -69,7 +75,6 @@ class Enemy(Entity):
             self.vx = self.wander_dx
             self.vy = self.wander_dy
 
-        attack_range = config.BAT_RANGE if (self.has_bat or self.has_pipe) else config.ENEMY_PUNCH_RANGE
         if dist <= attack_range and self.can_see_player:
             self.in_range_timer += dt
         else:
@@ -148,21 +153,35 @@ class Enemy(Entity):
         pygame.draw.circle(screen, (180, 160, 40), (int(pos.x), int(pos.y)), head_radius - 2)
 
         # Weapon rendering
+        hand_offset = self.radius + 6
+        right_hand = pygame.Vector2(self.x, self.y) + dir_vec * 2 + side_vec * shoulder_width + dir_vec * right_arm_ext
         if self.attack_timer > 0:
             progress = 1.0 - (self.attack_timer / 0.2)
-            anim_pos = pygame.Vector2(self.x, self.y) + self.attack_offset * progress
+            swing_arc = config.PIPE_SWING_ARC if self.has_pipe else config.BAT_SWING_ARC
+            swing_angle = self.attack_angle + (progress - 0.5) * swing_arc
+            swing_center = right_hand + dir_vec * hand_offset
             if self.has_bat or self.has_pipe:
-                swing_arc = config.PIPE_SWING_ARC if self.has_pipe else config.BAT_SWING_ARC
-                swing_angle = self.attack_angle + (progress - 0.5) * swing_arc
                 if self.has_pipe:
-                    draw_pipe_sprite(screen, anim_pos, swing_angle, offset, scale=1.0)
+                    draw_pipe_sprite(screen, swing_center, swing_angle, offset, scale=1.0)
                 else:
-                    draw_bat_sprite(screen, anim_pos, swing_angle, offset, scale=1.0)
-        
+                    draw_bat_sprite(screen, swing_center, swing_angle, offset, scale=1.0)
+                arc_radius = config.BAT_RANGE if self.has_bat else config.BAT_RANGE * 0.9
+                arc_start = self.attack_angle - swing_arc / 2
+                arc_end = self.attack_angle + swing_arc / 2
+                steps = 8
+                arc_points = []
+                for i in range(steps + 1):
+                    t = arc_start + (arc_end - arc_start) * (i / steps)
+                    arc_points.append(
+                        (
+                            int(self.x + math.cos(t) * arc_radius - offset.x),
+                            int(self.y + math.sin(t) * arc_radius - offset.y),
+                        )
+                    )
+                if len(arc_points) > 1:
+                    pygame.draw.lines(screen, config.WHITE, False, arc_points, 2)
         if (self.has_bat or self.has_pipe) and self.attack_timer <= 0:
-            hand_pos = pygame.Vector2(self.x, self.y) + (
-                pygame.Vector2(math.cos(angle), math.sin(angle)) * (self.radius + 6)
-            )
+            hand_pos = right_hand + dir_vec * hand_offset
             if self.has_pipe:
                 draw_pipe_sprite(screen, hand_pos, angle, offset, scale=0.7)
             else:

@@ -118,12 +118,20 @@ class Game:
                         if enemy.hp <= 0:
                             enemy.alive = False
                             self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+                            drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                             if enemy.has_bat:
-                                self.bat_items.append(BatItem(enemy.x, enemy.y, enemy.bat_durability))
+                                self.bat_items.append(
+                                    BatItem(enemy.x + drop_offset.x, enemy.y + drop_offset.y, enemy.bat_durability)
+                                )
                                 enemy.has_bat = False
                             if enemy.has_pipe:
                                 self.bat_items.append(
-                                    BatItem(enemy.x, enemy.y, enemy.pipe_durability, is_pipe=True)
+                                    BatItem(
+                                        enemy.x + drop_offset.x,
+                                        enemy.y + drop_offset.y,
+                                        enemy.pipe_durability,
+                                        is_pipe=True,
+                                    )
                                 )
                                 enemy.has_pipe = False
 
@@ -170,6 +178,25 @@ class Game:
         self.player.update(dt, keys, world_mouse)
         self.player.move(dt, self.walls, self.doors)
 
+        for enemy in self.enemies:
+            if not enemy.alive:
+                continue
+            dx = self.player.x - enemy.x
+            dy = self.player.y - enemy.y
+            dist = math.hypot(dx, dy)
+            min_dist = self.player.radius + enemy.radius
+            if dist > 0 and dist < min_dist:
+                push = (min_dist - dist) / 2
+                nx = dx / dist
+                ny = dy / dist
+                self.player.x += nx * push
+                self.player.y += ny * push
+                enemy.x -= nx * push
+                enemy.y -= ny * push
+
+        self.player.x = max(self.player.radius, min(config.WORLD_WIDTH - self.player.radius, self.player.x))
+        self.player.y = max(self.player.radius, min(config.WORLD_HEIGHT - self.player.radius, self.player.y))
+
         if self.throw_charging:
             self.throw_charge += dt
 
@@ -195,12 +222,20 @@ class Game:
                         if enemy.hp <= 0:
                             enemy.alive = False
                             self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+                            drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                             if enemy.has_bat:
-                                self.bat_items.append(BatItem(enemy.x, enemy.y, enemy.bat_durability))
+                                self.bat_items.append(
+                                    BatItem(enemy.x + drop_offset.x, enemy.y + drop_offset.y, enemy.bat_durability)
+                                )
                                 enemy.has_bat = False
                             if enemy.has_pipe:
                                 self.bat_items.append(
-                                    BatItem(enemy.x, enemy.y, enemy.pipe_durability, is_pipe=True)
+                                    BatItem(
+                                        enemy.x + drop_offset.x,
+                                        enemy.y + drop_offset.y,
+                                        enemy.pipe_durability,
+                                        is_pipe=True,
+                                    )
                                 )
                                 enemy.has_pipe = False
                         if projectile.durability <= 0:
@@ -223,6 +258,22 @@ class Game:
             enemy.update(dt, self.player, self.walls, self.doors)
             enemy.move(dt, self.walls, self.doors)
 
+            for other in self.enemies:
+                if other is enemy or not other.alive or not enemy.alive:
+                    continue
+                dx = enemy.x - other.x
+                dy = enemy.y - other.y
+                dist = math.hypot(dx, dy)
+                min_dist = enemy.radius + other.radius
+                if dist > 0 and dist < min_dist:
+                    push = (min_dist - dist) / 2
+                    nx = dx / dist
+                    ny = dy / dist
+                    enemy.x += nx * push
+                    enemy.y += ny * push
+                    other.x -= nx * push
+                    other.y -= ny * push
+
             if enemy.can_punch(self.player):
                 facing = math.atan2(self.player.y - enemy.y, self.player.x - enemy.x)
                 enemy.punch(facing)
@@ -234,14 +285,6 @@ class Game:
                 if self.player.hp <= 0 and self.player.alive:
                     self.player.alive = False
                     self.corpses.append(Corpse(self.player.x, self.player.y, self.player.radius, True))
-
-            if not enemy.alive and (enemy.has_bat or enemy.has_pipe):
-                if enemy.has_bat:
-                    self.bat_items.append(BatItem(enemy.x, enemy.y, enemy.bat_durability))
-                    enemy.has_bat = False
-                if enemy.has_pipe:
-                    self.bat_items.append(BatItem(enemy.x, enemy.y, enemy.pipe_durability, is_pipe=True))
-                    enemy.has_pipe = False
 
     def try_pickup_weapon(self) -> None:
         if self.player_has_bat or self.player_has_pipe:
@@ -314,14 +357,23 @@ class Game:
                     target.alive = False
                     is_player = isinstance(target, Player)
                     self.corpses.append(Corpse(target.x, target.y, target.radius, is_player))
-                    if isinstance(target, Enemy) and target.has_bat:
-                        self.bat_items.append(BatItem(target.x, target.y, target.bat_durability))
-                        target.has_bat = False
-                    if isinstance(target, Enemy) and target.has_pipe:
-                        self.bat_items.append(
-                            BatItem(target.x, target.y, target.pipe_durability, is_pipe=True)
-                        )
-                        target.has_pipe = False
+                    if isinstance(target, Enemy) and (target.has_bat or target.has_pipe):
+                        drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
+                        if target.has_bat:
+                            self.bat_items.append(
+                                BatItem(target.x + drop_offset.x, target.y + drop_offset.y, target.bat_durability)
+                            )
+                            target.has_bat = False
+                        if target.has_pipe:
+                            self.bat_items.append(
+                                BatItem(
+                                    target.x + drop_offset.x,
+                                    target.y + drop_offset.y,
+                                    target.pipe_durability,
+                                    is_pipe=True,
+                                )
+                            )
+                            target.has_pipe = False
         if hit_player:
             self.impact_flashes.append(config.BAT_IMPACT_FLASH)
         if source_is_player and hit_any:
