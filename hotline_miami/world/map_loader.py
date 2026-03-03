@@ -14,121 +14,166 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
     """Populate walls, doors, and enemies. Returns building bounds."""
     main_x, main_y = 1000, 200
     main_w, main_h = 1200, 1000
+    wall_thickness = 28
+    door_width = 76
+    door_height = 120
 
-    door_n = (main_x + 540, 120)
-    door_s = (main_x + 540, 120)
-    door_w = (main_y + 430, 140)
-    door_e = (main_y + 430, 140)
+    door_n = (main_x + 540, door_width)
+    door_s = (main_x + 540, door_width)
+    door_w = (main_y + 430, door_height)
+    door_e = (main_y + 430, door_height)
 
-    walls.append(Wall(main_x, main_y, door_n[0] - main_x, 24))
-    walls.append(Wall(door_n[0] + door_n[1], main_y, main_w - (door_n[0] - main_x) - door_n[1], 24))
-    doors.append(Door(door_n[0], main_y, door_n[1], 24, hinge_left=True))
+    walls.append(Wall(main_x, main_y, door_n[0] - main_x, wall_thickness))
+    walls.append(
+        Wall(
+            door_n[0] + door_n[1],
+            main_y,
+            main_w - (door_n[0] - main_x) - door_n[1],
+            wall_thickness,
+        )
+    )
+    doors.append(Door(door_n[0], main_y, door_n[1], wall_thickness, hinge_left=True))
 
-    walls.append(Wall(main_x, main_y + main_h - 24, door_s[0] - main_x, 24))
+    walls.append(Wall(main_x, main_y + main_h - wall_thickness, door_s[0] - main_x, wall_thickness))
     walls.append(
         Wall(
             door_s[0] + door_s[1],
-            main_y + main_h - 24,
+            main_y + main_h - wall_thickness,
             main_w - (door_s[0] - main_x) - door_s[1],
-            24,
+            wall_thickness,
         )
     )
-    doors.append(Door(door_s[0], main_y + main_h - 24, door_s[1], 24, hinge_left=False))
+    doors.append(
+        Door(
+            door_s[0],
+            main_y + main_h - wall_thickness,
+            door_s[1],
+            wall_thickness,
+            hinge_left=False,
+        )
+    )
 
-    walls.append(Wall(main_x, main_y, 24, door_w[0] - main_y))
+    walls.append(Wall(main_x, main_y, wall_thickness, door_w[0] - main_y))
     walls.append(
         Wall(
             main_x,
             door_w[0] + door_w[1],
-            24,
+            wall_thickness,
             main_h - (door_w[0] - main_y) - door_w[1],
         )
     )
-    doors.append(Door(main_x, door_w[0], 24, door_w[1], hinge_left=True))
+    doors.append(Door(main_x, door_w[0], wall_thickness, door_w[1], hinge_left=True))
 
-    walls.append(Wall(main_x + main_w - 24, main_y, 24, door_e[0] - main_y))
+    walls.append(
+        Wall(main_x + main_w - wall_thickness, main_y, wall_thickness, door_e[0] - main_y)
+    )
     walls.append(
         Wall(
-            main_x + main_w - 24,
+            main_x + main_w - wall_thickness,
             door_e[0] + door_e[1],
-            24,
+            wall_thickness,
             main_h - (door_e[0] - main_y) - door_e[1],
         )
     )
-    doors.append(Door(main_x + main_w - 24, door_e[0], 24, door_e[1], hinge_left=False))
+    doors.append(
+        Door(main_x + main_w - wall_thickness, door_e[0], wall_thickness, door_e[1], hinge_left=False)
+    )
 
     main_building = (main_x, main_y, main_w, main_h)
 
-    walls.append(Wall(main_x + 300, main_y + 24, 24, 300))
-    walls.append(Wall(main_x + 300, main_y + 500, 24, 476))
-    doors.append(Door(main_x + 300, main_y + 324, 24, 176, hinge_left=True))
+    walls.append(Wall(main_x + 320, main_y + wall_thickness, wall_thickness, 300))
+    walls.append(Wall(main_x + 320, main_y + 520, wall_thickness, 460))
+    doors.append(Door(main_x + 320, main_y + 340, wall_thickness, door_height, hinge_left=True))
 
-    walls.append(Wall(main_x + 24, main_y + 420, 276, 24))
-    walls.append(Wall(main_x + 324, main_y + 420, 852, 24))
-    doors.append(Door(main_x + 300, main_y + 420, 140, 24, hinge_left=True))
+    walls.append(Wall(main_x + wall_thickness, main_y + 440, 280, wall_thickness))
+    walls.append(Wall(main_x + 320 + wall_thickness, main_y + 440, 820, wall_thickness))
+    doors.append(Door(main_x + 320, main_y + 440, door_width, wall_thickness, hinge_left=True))
 
-    walls.append(Wall(main_x + 700, main_y + 24, 24, 250))
-    walls.append(Wall(main_x + 700, main_y + 520, 24, 456))
-    doors.append(Door(main_x + 700, main_y + 300, 24, 220, hinge_left=False))
+    walls.append(Wall(main_x + 720, main_y + wall_thickness, wall_thickness, 250))
+    walls.append(Wall(main_x + 720, main_y + 540, wall_thickness, 430))
+    doors.append(Door(main_x + 720, main_y + 310, wall_thickness, door_height, hinge_left=False))
 
-    walls.append(Wall(main_x + 724, main_y + 300, 200, 24))
-    doors.append(Door(main_x + 724, main_y + 300, 120, 24, hinge_left=True))
+    walls.append(Wall(main_x + 720 + wall_thickness, main_y + 310, 220, wall_thickness))
+    doors.append(Door(main_x + 720 + wall_thickness, main_y + 310, door_width, wall_thickness, hinge_left=True))
 
-    doors.append(Door(main_x + 500, main_y + 420, 120, 24, hinge_left=False))
-    doors.append(Door(main_x + 900, main_y + 420, 120, 24, hinge_left=True))
+    doors.append(Door(main_x + 520, main_y + 440, door_width, wall_thickness, hinge_left=False))
+    doors.append(Door(main_x + 920, main_y + 440, door_width, wall_thickness, hinge_left=True))
 
     small_x, small_y = 150, 250
     small_w, small_h = 600, 500
 
-    s_door_n = (small_x + 250, 100)
-    s_door_s = (small_x + 250, 100)
-    s_door_w = (small_y + 200, 100)
-    s_door_e = (small_y + 200, 100)
+    s_door_n = (small_x + 250, door_width)
+    s_door_s = (small_x + 250, door_width)
+    s_door_w = (small_y + 200, door_height)
+    s_door_e = (small_y + 200, door_height)
 
-    walls.append(Wall(small_x, small_y, s_door_n[0] - small_x, 24))
+    walls.append(Wall(small_x, small_y, s_door_n[0] - small_x, wall_thickness))
     walls.append(
-        Wall(s_door_n[0] + s_door_n[1], small_y, small_w - (s_door_n[0] - small_x) - s_door_n[1], 24)
+        Wall(
+            s_door_n[0] + s_door_n[1],
+            small_y,
+            small_w - (s_door_n[0] - small_x) - s_door_n[1],
+            wall_thickness,
+        )
     )
-    doors.append(Door(s_door_n[0], small_y, s_door_n[1], 24, hinge_left=True))
+    doors.append(Door(s_door_n[0], small_y, s_door_n[1], wall_thickness, hinge_left=True))
 
-    walls.append(Wall(small_x, small_y + small_h - 24, s_door_s[0] - small_x, 24))
+    walls.append(Wall(small_x, small_y + small_h - wall_thickness, s_door_s[0] - small_x, wall_thickness))
     walls.append(
         Wall(
             s_door_s[0] + s_door_s[1],
-            small_y + small_h - 24,
+            small_y + small_h - wall_thickness,
             small_w - (s_door_s[0] - small_x) - s_door_s[1],
-            24,
+            wall_thickness,
         )
     )
-    doors.append(Door(s_door_s[0], small_y + small_h - 24, s_door_s[1], 24, hinge_left=False))
+    doors.append(
+        Door(
+            s_door_s[0],
+            small_y + small_h - wall_thickness,
+            s_door_s[1],
+            wall_thickness,
+            hinge_left=False,
+        )
+    )
 
-    walls.append(Wall(small_x, small_y, 24, s_door_w[0] - small_y))
+    walls.append(Wall(small_x, small_y, wall_thickness, s_door_w[0] - small_y))
     walls.append(
         Wall(
             small_x,
             s_door_w[0] + s_door_w[1],
-            24,
+            wall_thickness,
             small_h - (s_door_w[0] - small_y) - s_door_w[1],
         )
     )
-    doors.append(Door(small_x, s_door_w[0], 24, s_door_w[1], hinge_left=True))
+    doors.append(Door(small_x, s_door_w[0], wall_thickness, s_door_w[1], hinge_left=True))
 
-    walls.append(Wall(small_x + small_w - 24, small_y, 24, s_door_e[0] - small_y))
+    walls.append(
+        Wall(small_x + small_w - wall_thickness, small_y, wall_thickness, s_door_e[0] - small_y)
+    )
     walls.append(
         Wall(
-            small_x + small_w - 24,
+            small_x + small_w - wall_thickness,
             s_door_e[0] + s_door_e[1],
-            24,
+            wall_thickness,
             small_h - (s_door_e[0] - small_y) - s_door_e[1],
         )
     )
-    doors.append(Door(small_x + small_w - 24, s_door_e[0], 24, s_door_e[1], hinge_left=False))
+    doors.append(
+        Door(
+            small_x + small_w - wall_thickness,
+            s_door_e[0],
+            wall_thickness,
+            s_door_e[1],
+            hinge_left=False,
+        )
+    )
 
     small_building = (small_x, small_y, small_w, small_h)
 
-    walls.append(Wall(small_x + 24, small_y + 240, 250, 24))
-    walls.append(Wall(small_x + 350, small_y + 240, 226, 24))
-    doors.append(Door(small_x + 274, small_y + 240, 76, 24, hinge_left=True))
+    walls.append(Wall(small_x + wall_thickness, small_y + 250, 240, wall_thickness))
+    walls.append(Wall(small_x + 350, small_y + 250, 210, wall_thickness))
+    doors.append(Door(small_x + 270, small_y + 250, door_width, wall_thickness, hinge_left=True))
 
     for pos in [
         (main_x + 120, main_y + 120),

@@ -99,25 +99,26 @@ class Door:
             self.hit_cooldown -= dt
 
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2) -> None:
+        panel_color = config.BROWN
+        frame_color = config.DARK_BROWN
+        hinge_color = config.GRAY
+
         if self.is_horizontal:
             if self.open_amount < 0.1:
-                pygame.draw.rect(
-                    screen,
-                    config.BROWN,
-                    (self.x - offset.x, self.y - offset.y, self.width, self.height),
-                )
-                pygame.draw.rect(
-                    screen,
-                    config.DARK_BROWN,
-                    (self.x - offset.x, self.y - offset.y, self.width, self.height),
-                    2,
-                )
-                hinge_x = self.x + 3 if self.hinge_left else self.x + self.width - 6
-                pygame.draw.rect(
-                    screen,
-                    config.GRAY,
-                    (hinge_x - offset.x, self.y - offset.y, 3, self.height),
-                )
+                door_rect = pygame.Rect(self.x - offset.x, self.y - offset.y, self.width, self.height)
+                pygame.draw.rect(screen, panel_color, door_rect)
+                pygame.draw.rect(screen, frame_color, door_rect, 2)
+                knob = (door_rect.centerx, door_rect.centery - 4 if self.hinge_left else door_rect.centery + 4)
+                pygame.draw.circle(screen, hinge_color, knob, 3)
+                for i in range(3):
+                    inset = 4 + i * 4
+                    pygame.draw.line(
+                        screen,
+                        frame_color,
+                        (door_rect.left + inset, door_rect.top + 4),
+                        (door_rect.left + inset, door_rect.bottom - 4),
+                        1,
+                    )
             else:
                 angle = self.open_amount * (math.pi / 2.5)
                 cos_a = math.cos(angle)
@@ -134,37 +135,34 @@ class Door:
 
                 pygame.draw.line(
                     screen,
-                    config.BROWN,
+                    panel_color,
                     (hinge_x - offset.x, hinge_y - offset.y),
                     (end_x - offset.x, end_y - offset.y),
                     int(self.height),
                 )
                 pygame.draw.circle(
                     screen,
-                    config.GRAY,
+                    hinge_color,
                     (int(hinge_x - offset.x), int(hinge_y - offset.y)),
                     4,
                 )
             return
 
         if self.open_amount < 0.1:
-            pygame.draw.rect(
-                screen,
-                config.BROWN,
-                (self.x - offset.x, self.y - offset.y, self.width, self.height),
-            )
-            pygame.draw.rect(
-                screen,
-                config.DARK_BROWN,
-                (self.x - offset.x, self.y - offset.y, self.width, self.height),
-                2,
-            )
-            hinge_y = self.y + 3 if self.hinge_left else self.y + self.height - 6
-            pygame.draw.rect(
-                screen,
-                config.GRAY,
-                (self.x - offset.x, hinge_y - offset.y, self.width, 3),
-            )
+            door_rect = pygame.Rect(self.x - offset.x, self.y - offset.y, self.width, self.height)
+            pygame.draw.rect(screen, panel_color, door_rect)
+            pygame.draw.rect(screen, frame_color, door_rect, 2)
+            knob = (door_rect.centerx + (4 if self.hinge_left else -4), door_rect.centery)
+            pygame.draw.circle(screen, hinge_color, knob, 3)
+            for i in range(3):
+                inset = 4 + i * 4
+                pygame.draw.line(
+                    screen,
+                    frame_color,
+                    (door_rect.left + 4, door_rect.top + inset),
+                    (door_rect.right - 4, door_rect.top + inset),
+                    1,
+                )
             return
 
         angle = self.open_amount * (math.pi / 2.5)
@@ -182,14 +180,14 @@ class Door:
 
         pygame.draw.line(
             screen,
-            config.BROWN,
+            panel_color,
             (hinge_x - offset.x, hinge_y - offset.y),
             (end_x - offset.x, end_y - offset.y),
             int(self.width),
         )
         pygame.draw.circle(
             screen,
-            config.GRAY,
+            hinge_color,
             (int(hinge_x - offset.x), int(hinge_y - offset.y)),
             4,
         )

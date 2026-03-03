@@ -46,5 +46,23 @@ class Wall:
             self.rect.width,
             self.rect.height,
         )
-        pygame.draw.rect(screen, config.WHITE, rect)
+        pygame.draw.rect(screen, config.DARK_GRAY, rect)
         pygame.draw.rect(screen, config.GRAY, rect, 2)
+        if rect.width > rect.height:
+            for x in range(int(rect.left), int(rect.right), 24):
+                pygame.draw.line(
+                    screen,
+                    config.LIGHT_GRAY,
+                    (x, rect.top + 3),
+                    (x + 12, rect.top + rect.height - 3),
+                    1,
+                )
+        else:
+            for y in range(int(rect.top), int(rect.bottom), 24):
+                pygame.draw.line(
+                    screen,
+                    config.LIGHT_GRAY,
+                    (rect.left + 3, y),
+                    (rect.right - 3, y + 12),
+                    1,
+                )

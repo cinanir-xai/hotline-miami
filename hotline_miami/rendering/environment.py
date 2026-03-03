@@ -50,22 +50,23 @@ def draw_building_floors(
     cx, cy = camera_offset.x, camera_offset.y
 
     mx, my, mw, mh = main_building
-    floor_rect = pygame.Rect(mx + 24 - cx, my + 24 - cy, mw - 48, mh - 48)
+    wall_thickness = 28
+    floor_rect = pygame.Rect(mx + wall_thickness - cx, my + wall_thickness - cy, mw - wall_thickness * 2, mh - wall_thickness * 2)
     pygame.draw.rect(screen, config.DARK_GRAY, floor_rect)
 
-    plank_spacing = 20
-    for y in range(my + 24, my + mh - 24, plank_spacing):
-        pygame.draw.line(screen, config.GRAY, (mx + 24 - cx, y - cy), (mx + mw - 24 - cx, y - cy), 1)
+    plank_spacing = 18
+    for y in range(int(floor_rect.top), int(floor_rect.bottom), plank_spacing):
+        pygame.draw.line(screen, config.GRAY, (floor_rect.left, y), (floor_rect.right, y), 1)
 
-    for x in range(mx + 24, mx + mw - 24, 80):
-        pygame.draw.line(screen, config.LIGHT_GRAY, (x - cx, my + 24 - cy), (x - cx, my + mh - 24 - cy), 2)
+    for x in range(int(floor_rect.left), int(floor_rect.right), 90):
+        pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect.top), (x, floor_rect.bottom), 2)
 
     sx, sy, sw, sh = small_building
-    floor_rect2 = pygame.Rect(sx + 24 - cx, sy + 24 - cy, sw - 48, sh - 48)
+    floor_rect2 = pygame.Rect(sx + wall_thickness - cx, sy + wall_thickness - cy, sw - wall_thickness * 2, sh - wall_thickness * 2)
     pygame.draw.rect(screen, config.DARK_GRAY, floor_rect2)
 
-    for y in range(sy + 24, sy + sh - 24, plank_spacing):
-        pygame.draw.line(screen, config.GRAY, (sx + 24 - cx, y - cy), (sx + sw - 24 - cx, y - cy), 1)
+    for y in range(int(floor_rect2.top), int(floor_rect2.bottom), plank_spacing):
+        pygame.draw.line(screen, config.GRAY, (floor_rect2.left, y), (floor_rect2.right, y), 1)
 
-    for x in range(sx + 24, sx + sw - 24, 80):
-        pygame.draw.line(screen, config.LIGHT_GRAY, (x - cx, sy + 24 - cy), (x - cx, sy + sh - 24 - cy), 2)
+    for x in range(int(floor_rect2.left), int(floor_rect2.right), 90):
+        pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect2.top), (x, floor_rect2.bottom), 2)
