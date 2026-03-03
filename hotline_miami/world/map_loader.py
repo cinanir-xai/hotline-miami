@@ -189,10 +189,13 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
     ]:
         enemy = Enemy(*pos)
         roll = random.random()
-        if roll < config.PIPE_SPAWN_CHANCE:
+        if roll < config.PISTOL_SPAWN_CHANCE:
+            enemy.has_pistol = True
+            enemy.pistol_ammo = config.PISTOL_AMMO
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE:
             enemy.has_pipe = True
             enemy.pipe_durability = config.PIPE_DURABILITY
-        elif roll < config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
             enemy.has_bat = True
             enemy.bat_durability = config.BAT_DURABILITY
         enemies.append(enemy)
@@ -205,10 +208,13 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
     ]:
         enemy = Enemy(*pos)
         roll = random.random()
-        if roll < config.PIPE_SPAWN_CHANCE:
+        if roll < config.PISTOL_SPAWN_CHANCE:
+            enemy.has_pistol = True
+            enemy.pistol_ammo = config.PISTOL_AMMO
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE:
             enemy.has_pipe = True
             enemy.pipe_durability = config.PIPE_DURABILITY
-        elif roll < config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
             enemy.has_bat = True
             enemy.bat_durability = config.BAT_DURABILITY
         enemies.append(enemy)
@@ -216,10 +222,13 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
     for pos in [(700, 900), (900, 1050), (600, 450), (800, 300)]:
         enemy = Enemy(*pos)
         roll = random.random()
-        if roll < config.PIPE_SPAWN_CHANCE:
+        if roll < config.PISTOL_SPAWN_CHANCE:
+            enemy.has_pistol = True
+            enemy.pistol_ammo = config.PISTOL_AMMO
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE:
             enemy.has_pipe = True
             enemy.pipe_durability = config.PIPE_DURABILITY
-        elif roll < config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
             enemy.has_bat = True
             enemy.bat_durability = config.BAT_DURABILITY
         enemies.append(enemy)

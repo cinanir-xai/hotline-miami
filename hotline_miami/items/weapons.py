@@ -6,7 +6,7 @@ import math
 import pygame
 
 from hotline_miami import config
-from hotline_miami.rendering.weapons import draw_bat_sprite, draw_pipe_sprite
+from hotline_miami.rendering.weapons import draw_bat_sprite, draw_pipe_sprite, draw_pistol_sprite
 
 
 class BatItem:
@@ -84,3 +84,71 @@ class BatProjectile:
             draw_pipe_sprite(screen, pygame.Vector2(self.x, self.y), self.spin, offset, scale=1.0)
         else:
             draw_bat_sprite(screen, pygame.Vector2(self.x, self.y), self.spin, offset, scale=1.0)
+
+
+class PistolItem:
+    def __init__(self, x: float, y: float, ammo: int = config.PISTOL_AMMO):
+        self.x = x
+        self.y = y
+        self.ammo = ammo
+
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2) -> None:
+        draw_pistol_sprite(
+            screen,
+            pygame.Vector2(self.x, self.y),
+            0.15,
+            offset,
+            scale=1.0,
+        )
+
+
+class BulletProjectile:
+    def __init__(self, x: float, y: float, velocity: pygame.Vector2, source_is_player: bool):
+        self.x = x
+        self.y = y
+        self.velocity = velocity
+        self.source_is_player = source_is_player
+        self.alive = True
+        self.life = config.PISTOL_BULLET_LIFE
+
+    def update(self, dt: float, walls: list, doors: list) -> None:
+        if not self.alive:
+            return
+        next_x = self.x + self.velocity.x * dt
+        next_y = self.y + self.velocity.y * dt
+
+        for wall in walls:
+            if wall.contains_point(next_x, next_y, 2):
+                self.alive = False
+                return
+
+        for door in doors:
+            if door.intersects_line(pygame.Vector2(self.x, self.y), pygame.Vector2(next_x, next_y)):
+                door.force_open()
+                break
+
+        self.x = next_x
+        self.y = next_y
+        self.life -= dt
+        if self.life <= 0:
+            self.alive = False
+
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2) -> None:
+        tip = pygame.Vector2(self.x, self.y)
+        if self.velocity.length() == 0:
+            tail = tip
+        else:
+            tail = tip - self.velocity.normalize() * 10
+        pygame.draw.line(
+            screen,
+            config.YELLOW,
+            (int(tail.x - offset.x), int(tail.y - offset.y)),
+            (int(tip.x - offset.x), int(tip.y - offset.y)),
+            2,
+        )
+        pygame.draw.circle(
+            screen,
+            (255, 230, 150),
+            (int(tip.x - offset.x), int(tip.y - offset.y)),
+            3,
+        )

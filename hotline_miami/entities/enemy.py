@@ -8,7 +8,7 @@ import pygame
 
 from hotline_miami import config
 from hotline_miami.entities.base import Entity
-from hotline_miami.rendering.weapons import draw_bat_sprite, draw_pipe_sprite
+from hotline_miami.rendering.weapons import draw_bat_sprite, draw_pipe_sprite, draw_pistol_sprite
 
 
 class Enemy(Entity):
@@ -22,8 +22,10 @@ class Enemy(Entity):
         self.can_see_player = False
         self.has_bat = False
         self.has_pipe = False
+        self.has_pistol = False
         self.bat_durability = config.BAT_DURABILITY
         self.pipe_durability = config.PIPE_DURABILITY
+        self.pistol_ammo = config.PISTOL_AMMO
 
     def update(self, dt: float, player, walls: list, doors: list) -> None:
         if not self.alive:
@@ -40,7 +42,8 @@ class Enemy(Entity):
         dist = math.sqrt(dx * dx + dy * dy)
 
         self.can_see_player = False
-        if dist < config.ENEMY_LOS_RANGE and player.alive:
+        los_range = config.PISTOL_LOS_RANGE if self.has_pistol else config.ENEMY_LOS_RANGE
+        if dist < los_range and player.alive:
             start = pygame.Vector2(self.x, self.y)
             end = pygame.Vector2(player.x, player.y)
             blocked = False
@@ -56,6 +59,8 @@ class Enemy(Entity):
             self.can_see_player = not blocked
 
         attack_range = config.BAT_RANGE if (self.has_bat or self.has_pipe) else config.ENEMY_PUNCH_RANGE
+        if self.has_pistol:
+            attack_range = max(attack_range, config.PISTOL_LOS_RANGE * 0.7)
         stop_range = attack_range * 0.9
 
         if dist < config.ENEMY_DETECTION_RANGE and player.alive and self.can_see_player:
@@ -83,6 +88,8 @@ class Enemy(Entity):
     def can_punch(self, player) -> bool:
         if not self.alive or not player.alive or self.punch_cooldown > 0:
             return False
+        if self.has_pistol:
+            return False
         if not self.can_see_player:
             return False
         if self.in_range_timer < config.ENEMY_PUNCH_WINDUP:
@@ -91,6 +98,18 @@ class Enemy(Entity):
         dy = player.y - self.y
         dist = math.sqrt(dx * dx + dy * dy)
         return dist <= (config.BAT_RANGE if (self.has_bat or self.has_pipe) else config.ENEMY_PUNCH_RANGE)
+
+    def can_shoot(self, player) -> bool:
+        if not self.alive or not player.alive or self.punch_cooldown > 0:
+            return False
+        if not self.has_pistol or self.pistol_ammo <= 0:
+            return False
+        if not self.can_see_player:
+            return False
+        dx = player.x - self.x
+        dy = player.y - self.y
+        dist = math.sqrt(dx * dx + dy * dy)
+        return dist <= config.PISTOL_LOS_RANGE * 0.9
 
     def punch(self, facing_angle: float) -> None:
         has_weapon = self.has_bat or self.has_pipe
@@ -103,6 +122,10 @@ class Enemy(Entity):
         self.attack_offset = (
             pygame.Vector2(math.cos(self.attack_angle), math.sin(self.attack_angle)) * (self.radius + 10)
         )
+
+    def shoot(self) -> None:
+        self.punch_cooldown = config.PISTOL_ENEMY_COOLDOWN
+        self.attack_timer = 0.15
 
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2) -> None:
         if not self.alive:
@@ -186,6 +209,11 @@ class Enemy(Entity):
                 draw_pipe_sprite(screen, hand_pos, angle, offset, scale=0.7)
             else:
                 draw_bat_sprite(screen, hand_pos, angle, offset, scale=0.7)
+
+        if self.has_pistol:
+            pistol_angle = angle
+            pistol_pos = right_hand + dir_vec * (hand_offset + 2)
+            draw_pistol_sprite(screen, pistol_pos, pistol_angle, offset, scale=0.9, firing=self.attack_timer > 0)
 
         # Health bar
         hp_pct = self.hp / config.ENEMY_HP
