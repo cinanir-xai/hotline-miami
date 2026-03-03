@@ -22,6 +22,10 @@ SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 FPS = 60
 
+# World
+WORLD_WIDTH = 2400
+WORLD_HEIGHT = 1400
+
 # Player
 PLAYER_RADIUS = 15
 PLAYER_SPEED = 220
@@ -35,7 +39,24 @@ ENEMY_SPEED = 130
 ENEMY_HP = 3
 ENEMY_PUNCH_RANGE = 45
 ENEMY_PUNCH_COOLDOWN = 3.0
-ENEMY_DETECTION_RANGE = 300
+ENEMY_DETECTION_RANGE = 320
+ENEMY_LOS_RANGE = 450
+
+# Door interactions
+DOOR_PUNCH_DAMAGE = 1
+DOOR_PUNCH_RANGE = 60
+DOOR_PUNCH_ANGLE = math.pi
+
+
+def line_segments_intersect(p1: pygame.Vector2, p2: pygame.Vector2, q1: pygame.Vector2, q2: pygame.Vector2) -> bool:
+    def ccw(a, b, c):
+        return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x)
+    return (ccw(p1, q1, q2) != ccw(p2, q1, q2)) and (ccw(p1, p2, q1) != ccw(p1, p2, q2))
+
+
+def angle_difference(a: float, b: float) -> float:
+    diff = (a - b + math.pi) % (2 * math.pi) - math.pi
+    return diff
 
 
 class Blood:
@@ -45,8 +66,8 @@ class Blood:
         self.radius = random.randint(3, 8)
         self.color = random.choice([RED, DARK_RED])
         
-    def draw(self, screen: pygame.Surface):
-        pygame.draw.circle(screen, self.color, (int(self.x), int(self.y)), self.radius)
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
+        pygame.draw.circle(screen, self.color, (int(self.x - offset.x), int(self.y - offset.y)), self.radius)
 
 
 class Corpse:
@@ -64,14 +85,14 @@ class Corpse:
             by = y + math.sin(angle) * dist
             self.blood.append(Blood(bx, by))
     
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
         # Draw blood first (underneath)
         for blood in self.blood:
-            blood.draw(screen)
+            blood.draw(screen, offset)
         # Draw corpse as flattened circle
         color = GREEN if self.is_player else RED
         pygame.draw.ellipse(screen, color, 
-                          (int(self.x - self.radius), int(self.y - self.radius/2),
+                          (int(self.x - self.radius - offset.x), int(self.y - self.radius/2 - offset.y),
                            int(self.radius * 2), int(self.radius)))
 
 
@@ -116,8 +137,8 @@ class Entity:
             self.y = new_y
         
         # Keep in bounds
-        self.x = max(self.radius, min(SCREEN_WIDTH - self.radius, self.x))
-        self.y = max(self.radius, min(SCREEN_HEIGHT - self.radius, self.y))
+        self.x = max(self.radius, min(WORLD_WIDTH - self.radius, self.x))
+        self.y = max(self.radius, min(WORLD_HEIGHT - self.radius, self.y))
 
 
 class Player(Entity):
@@ -168,19 +189,19 @@ class Player(Entity):
         py = self.y + math.sin(self.facing_angle) * PLAYER_PUNCH_RANGE
         return (px, py)
     
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
         if not self.alive:
             return
         # Body
-        pygame.draw.circle(screen, GREEN, (int(self.x), int(self.y)), self.radius)
+        pygame.draw.circle(screen, GREEN, (int(self.x - offset.x), int(self.y - offset.y)), self.radius)
         # Direction indicator
         end_x = self.x + math.cos(self.facing_angle) * (self.radius + 5)
         end_y = self.y + math.sin(self.facing_angle) * (self.radius + 5)
-        pygame.draw.line(screen, DARK_GRAY, (self.x, self.y), (end_x, end_y), 3)
+        pygame.draw.line(screen, DARK_GRAY, (self.x - offset.x, self.y - offset.y), (end_x - offset.x, end_y - offset.y), 3)
         # Punch indicator if on cooldown
         if self.punch_cooldown > PLAYER_PUNCH_COOLDOWN * 0.5:
             px, py = self.get_punch_hitbox()
-            pygame.draw.circle(screen, YELLOW, (int(px), int(py)), 8)
+            pygame.draw.circle(screen, YELLOW, (int(px - offset.x), int(py - offset.y)), 8)
 
 
 class Enemy(Entity):
@@ -190,6 +211,7 @@ class Enemy(Entity):
         self.wander_timer = 0.0
         self.wander_dx = 0.0
         self.wander_dy = 0.0
+        self.can_see_player = False
         
     def update(self, dt: float, player: Player, walls: List['Wall'], doors: List['Door']):
         if not self.alive:
@@ -204,7 +226,23 @@ class Enemy(Entity):
         dy = player.y - self.y
         dist = math.sqrt(dx * dx + dy * dy)
         
-        if dist < ENEMY_DETECTION_RANGE and player.alive:
+        self.can_see_player = False
+        if dist < ENEMY_LOS_RANGE and player.alive:
+            start = pygame.Vector2(self.x, self.y)
+            end = pygame.Vector2(player.x, player.y)
+            blocked = False
+            for wall in walls:
+                if wall.intersects_line(start, end):
+                    blocked = True
+                    break
+            if not blocked:
+                for door in doors:
+                    if door.intersects_line(start, end):
+                        blocked = True
+                        break
+            self.can_see_player = not blocked
+        
+        if dist < ENEMY_DETECTION_RANGE and player.alive and self.can_see_player:
             # Chase player
             if dist > 0:
                 self.vx = dx / dist
@@ -223,6 +261,8 @@ class Enemy(Entity):
     def can_punch(self, player: Player) -> bool:
         if not self.alive or not player.alive or self.punch_cooldown > 0:
             return False
+        if not self.can_see_player:
+            return False
         dx = player.x - self.x
         dy = player.y - self.y
         dist = math.sqrt(dx * dx + dy * dy)
@@ -231,15 +271,15 @@ class Enemy(Entity):
     def punch(self):
         self.punch_cooldown = ENEMY_PUNCH_COOLDOWN
     
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
         if not self.alive:
             return
-        pygame.draw.circle(screen, RED, (int(self.x), int(self.y)), self.radius)
+        pygame.draw.circle(screen, RED, (int(self.x - offset.x), int(self.y - offset.y)), self.radius)
         # Health indicator
         hp_pct = self.hp / ENEMY_HP
-        pygame.draw.rect(screen, BLACK, (int(self.x - 10), int(self.y - self.radius - 8), 20, 4))
+        pygame.draw.rect(screen, BLACK, (int(self.x - 10 - offset.x), int(self.y - self.radius - 8 - offset.y), 20, 4))
         pygame.draw.rect(screen, GREEN if hp_pct > 0.5 else YELLOW if hp_pct > 0.25 else RED,
-                        (int(self.x - 10), int(self.y - self.radius - 8), int(20 * hp_pct), 4))
+                        (int(self.x - 10 - offset.x), int(self.y - self.radius - 8 - offset.y), int(20 * hp_pct), 4))
 
 
 class Wall:
@@ -254,9 +294,22 @@ class Wall:
         return (x - radius < self.x + self.width and x + radius > self.x and
                 y - radius < self.y + self.height and y + radius > self.y)
     
-    def draw(self, screen: pygame.Surface):
-        pygame.draw.rect(screen, WHITE, self.rect)
-        pygame.draw.rect(screen, GRAY, self.rect, 2)
+    def intersects_line(self, start: pygame.Vector2, end: pygame.Vector2) -> bool:
+        rect_lines = [
+            (pygame.Vector2(self.x, self.y), pygame.Vector2(self.x + self.width, self.y)),
+            (pygame.Vector2(self.x + self.width, self.y), pygame.Vector2(self.x + self.width, self.y + self.height)),
+            (pygame.Vector2(self.x + self.width, self.y + self.height), pygame.Vector2(self.x, self.y + self.height)),
+            (pygame.Vector2(self.x, self.y + self.height), pygame.Vector2(self.x, self.y)),
+        ]
+        for a, b in rect_lines:
+            if line_segments_intersect(start, end, a, b):
+                return True
+        return self.rect.clipline((start.x, start.y), (end.x, end.y)) != ()
+    
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
+        rect = pygame.Rect(self.rect.x - offset.x, self.rect.y - offset.y, self.rect.width, self.rect.height)
+        pygame.draw.rect(screen, WHITE, rect)
+        pygame.draw.rect(screen, GRAY, rect, 2)
 
 
 class Door:
@@ -269,6 +322,8 @@ class Door:
         self.is_open = False
         self.open_amount = 0.0  # 0 = closed, 1 = fully open
         self.is_horizontal = width > height
+        self.open_speed = 5.0
+        self.hit_cooldown = 0.0
         
     def collides_with_circle(self, cx: float, cy: float, radius: float) -> bool:
         if self.is_open and self.open_amount > 0.8:
@@ -280,6 +335,12 @@ class Door:
         dx = cx - closest_x
         dy = cy - closest_y
         return (dx * dx + dy * dy) < (radius * radius)
+    
+    def intersects_line(self, start: pygame.Vector2, end: pygame.Vector2) -> bool:
+        if self.is_open and self.open_amount > 0.8:
+            return False
+        door_rect = self.get_collision_rect()
+        return door_rect.clipline((start.x, start.y), (end.x, end.y)) != ()
     
     def get_collision_rect(self) -> pygame.Rect:
         if self.is_horizontal:
@@ -315,25 +376,33 @@ class Door:
             if entity_y > self.y + self.height:
                 self.is_open = True
         else:
-            # Vertical door - push from left to open outward  
+            # Vertical door - push from left to open outward
             if entity_x < self.x:
                 self.is_open = True
     
+    def force_open(self):
+        self.is_open = True
+        self.open_speed = 18.0
+        self.hit_cooldown = 0.15
+    
     def update(self, dt: float):
         target = 1.0 if self.is_open else 0.0
-        self.open_amount += (target - self.open_amount) * 5 * dt
+        self.open_amount += (target - self.open_amount) * self.open_speed * dt
         if abs(self.open_amount - target) < 0.01:
             self.open_amount = target
+        self.open_speed = max(5.0, self.open_speed - 10.0 * dt)
+        if self.hit_cooldown > 0:
+            self.hit_cooldown -= dt
     
-    def draw(self, screen: pygame.Surface):
+    def draw(self, screen: pygame.Surface, offset: pygame.Vector2):
         if self.is_horizontal:
             if self.open_amount < 0.1:
                 # Closed
-                pygame.draw.rect(screen, BROWN, (self.x, self.y, self.width, self.height))
-                pygame.draw.rect(screen, DARK_BROWN, (self.x, self.y, self.width, self.height), 2)
+                pygame.draw.rect(screen, BROWN, (self.x - offset.x, self.y - offset.y, self.width, self.height))
+                pygame.draw.rect(screen, DARK_BROWN, (self.x - offset.x, self.y - offset.y, self.width, self.height), 2)
                 # Hinge
                 hinge_x = self.x + 3 if self.hinge_left else self.x + self.width - 6
-                pygame.draw.rect(screen, GRAY, (hinge_x, self.y, 3, self.height))
+                pygame.draw.rect(screen, GRAY, (hinge_x - offset.x, self.y - offset.y, 3, self.height))
             else:
                 # Opening animation
                 angle = self.open_amount * (math.pi / 2.5)
@@ -349,14 +418,14 @@ class Door:
                     end_x = hinge_x - self.width * cos_a
                     end_y = hinge_y - self.width * sin_a * 0.5
                 
-                pygame.draw.line(screen, BROWN, (hinge_x, hinge_y), (end_x, end_y), int(self.height))
-                pygame.draw.circle(screen, GRAY, (int(hinge_x), int(hinge_y)), 4)
+                pygame.draw.line(screen, BROWN, (hinge_x - offset.x, hinge_y - offset.y), (end_x - offset.x, end_y - offset.y), int(self.height))
+                pygame.draw.circle(screen, GRAY, (int(hinge_x - offset.x), int(hinge_y - offset.y)), 4)
         else:
             if self.open_amount < 0.1:
-                pygame.draw.rect(screen, BROWN, (self.x, self.y, self.width, self.height))
-                pygame.draw.rect(screen, DARK_BROWN, (self.x, self.y, self.width, self.height), 2)
+                pygame.draw.rect(screen, BROWN, (self.x - offset.x, self.y - offset.y, self.width, self.height))
+                pygame.draw.rect(screen, DARK_BROWN, (self.x - offset.x, self.y - offset.y, self.width, self.height), 2)
                 hinge_y = self.y + 3 if self.hinge_left else self.y + self.height - 6
-                pygame.draw.rect(screen, GRAY, (self.x, hinge_y, self.width, 3))
+                pygame.draw.rect(screen, GRAY, (self.x - offset.x, hinge_y - offset.y, self.width, 3))
             else:
                 angle = self.open_amount * (math.pi / 2.5)
                 cos_a = math.cos(angle)
@@ -371,8 +440,8 @@ class Door:
                     end_x = hinge_x + self.height * sin_a * 0.5
                     end_y = hinge_y - self.height * cos_a
                 
-                pygame.draw.line(screen, BROWN, (hinge_x, hinge_y), (end_x, end_y), int(self.width))
-                pygame.draw.circle(screen, GRAY, (int(hinge_x), int(hinge_y)), 4)
+                pygame.draw.line(screen, BROWN, (hinge_x - offset.x, hinge_y - offset.y), (end_x - offset.x, end_y - offset.y), int(self.width))
+                pygame.draw.circle(screen, GRAY, (int(hinge_x - offset.x), int(hinge_y - offset.y)), 4)
 
 
 class Game:
@@ -383,78 +452,104 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         
-        self.player = Player(200, 500)
+        self.player = Player(300, 900)
         self.enemies: List[Enemy] = []
         self.walls: List[Wall] = []
         self.doors: List[Door] = []
         self.corpses: List[Corpse] = []
+        self.camera_offset = pygame.Vector2(0, 0)
         
         self.create_map()
     
     def create_map(self):
         """Create a multi-room building layout with NO overlapping walls"""
         
-        # Main building - large structure on the right
-        # Outer walls
-        main_x, main_y = 600, 100
-        main_w, main_h = 600, 500
+        # Main building - large structure on the right (twice size)
+        main_x, main_y = 1000, 200
+        main_w, main_h = 1200, 1000
         
         # Outer walls (clockwise from top-left)
-        self.walls.append(Wall(main_x, main_y, main_w, 20))  # Top
-        self.walls.append(Wall(main_x, main_y + main_h - 20, main_w, 20))  # Bottom
-        self.walls.append(Wall(main_x, main_y, 20, main_h))  # Left
-        self.walls.append(Wall(main_x + main_w - 20, main_y, 20, main_h))  # Right
+        self.walls.append(Wall(main_x, main_y, main_w, 24))  # Top
+        self.walls.append(Wall(main_x, main_y + main_h - 24, main_w, 24))  # Bottom
+        self.walls.append(Wall(main_x, main_y, 24, main_h))  # Left
+        self.walls.append(Wall(main_x + main_w - 24, main_y, 24, main_h))  # Right
+        
+        # External doors for main building (multiple entrances)
+        self.doors.append(Door(main_x + 300, main_y, 120, 24, hinge_left=True))  # Top entrance
+        self.doors.append(Door(main_x + 700, main_y + main_h - 24, 120, 24, hinge_left=False))  # Bottom entrance
+        self.doors.append(Door(main_x, main_y + 300, 24, 140, hinge_left=True))  # Left entrance
+        self.doors.append(Door(main_x + main_w - 24, main_y + 600, 24, 140, hinge_left=False))  # Right entrance
         
         # Internal room divisions
         # Vertical divider (left of center)
-        self.walls.append(Wall(main_x + 200, main_y + 20, 20, 200))  # Top portion
-        self.walls.append(Wall(main_x + 200, main_y + 320, 20, 180))  # Bottom portion
-        # Door gap at y=320-340
+        self.walls.append(Wall(main_x + 300, main_y + 24, 24, 300))  # Top portion
+        self.walls.append(Wall(main_x + 300, main_y + 500, 24, 476))  # Bottom portion
+        # Door gap between 324-500
         
         # Horizontal divider (middle)
-        self.walls.append(Wall(main_x + 20, main_y + 250, 180, 20))  # Left portion
-        self.walls.append(Wall(main_x + 220, main_y + 250, 380, 20))  # Right portion
+        self.walls.append(Wall(main_x + 24, main_y + 420, 276, 24))  # Left portion
+        self.walls.append(Wall(main_x + 324, main_y + 420, 852, 24))  # Right portion
         
-        # Another vertical divider for back room
-        self.walls.append(Wall(main_x + 400, main_y + 20, 20, 130))  # Top
-        self.walls.append(Wall(main_x + 400, main_y + 270, 20, 230))  # Bottom
+        # Vertical divider for back rooms
+        self.walls.append(Wall(main_x + 700, main_y + 24, 24, 250))
+        self.walls.append(Wall(main_x + 700, main_y + 520, 24, 456))
         
         # Small room in back right
-        self.walls.append(Wall(main_x + 420, main_y + 150, 80, 20))  # Divider
+        self.walls.append(Wall(main_x + 724, main_y + 300, 200, 24))
         
-        # Doors
-        self.doors.append(Door(main_x + 200, main_y + 220, 20, 100, hinge_left=True))  # Vertical door
-        self.doors.append(Door(main_x + 200, main_y + 270, 100, 20, hinge_left=True))  # Horizontal door
-        self.doors.append(Door(main_x + 400, main_y + 150, 20, 120, hinge_left=False))  # Vertical door
+        # Internal doors for main building (multiple connectors)
+        self.doors.append(Door(main_x + 300, main_y + 324, 24, 176, hinge_left=True))
+        self.doors.append(Door(main_x + 300, main_y + 420, 140, 24, hinge_left=True))
+        self.doors.append(Door(main_x + 700, main_y + 300, 24, 220, hinge_left=False))
+        self.doors.append(Door(main_x + 724, main_y + 300, 120, 24, hinge_left=True))
+        self.doors.append(Door(main_x + 500, main_y + 420, 120, 24, hinge_left=False))
+        self.doors.append(Door(main_x + 900, main_y + 420, 120, 24, hinge_left=True))
         
-        # Main entrance door (left side of building)
-        self.doors.append(Door(main_x, main_y + 200, 20, 100, hinge_left=True))
+        # Smaller building on the left (twice size)
+        small_x, small_y = 150, 250
+        small_w, small_h = 600, 500
         
-        # Smaller building on the left
-        small_x, small_y = 100, 150
-        small_w, small_h = 300, 250
+        self.walls.append(Wall(small_x, small_y, small_w, 24))
+        self.walls.append(Wall(small_x, small_y + small_h - 24, small_w, 24))
+        self.walls.append(Wall(small_x, small_y, 24, small_h))
+        self.walls.append(Wall(small_x + small_w - 24, small_y, 24, small_h))
         
-        self.walls.append(Wall(small_x, small_y, small_w, 20))
-        self.walls.append(Wall(small_x, small_y + small_h - 20, small_w, 20))
-        self.walls.append(Wall(small_x, small_y, 20, small_h))
-        self.walls.append(Wall(small_x + small_w - 20, small_y, 20, small_h))
+        # External doors for small building
+        self.doors.append(Door(small_x + 200, small_y, 100, 24, hinge_left=True))
+        self.doors.append(Door(small_x + small_w - 24, small_y + 140, 24, 120, hinge_left=False))
+        self.doors.append(Door(small_x + 120, small_y + small_h - 24, 100, 24, hinge_left=False))
         
         # Internal divider in small building
-        self.walls.append(Wall(small_x + 20, small_y + 120, 130, 20))
-        self.walls.append(Wall(small_x + 200, small_y + 120, 80, 20))
+        self.walls.append(Wall(small_x + 24, small_y + 240, 250, 24))
+        self.walls.append(Wall(small_x + 350, small_y + 240, 226, 24))
         
-        self.doors.append(Door(small_x + 150, small_y + 120, 50, 20, hinge_left=True))
-        self.doors.append(Door(small_x + small_w - 20, small_y + 80, 20, 80, hinge_left=False))
+        # Internal doors in small building
+        self.doors.append(Door(small_x + 274, small_y + 240, 76, 24, hinge_left=True))
+        self.doors.append(Door(small_x + 24, small_y + 140, 24, 100, hinge_left=True))
+        self.doors.append(Door(small_x + small_w - 24, small_y + 320, 24, 100, hinge_left=False))
         
         # Enemies in main building
-        self.enemies.append(Enemy(main_x + 100, main_y + 100))
-        self.enemies.append(Enemy(main_x + 300, main_y + 150))
-        self.enemies.append(Enemy(main_x + 500, main_y + 350))
-        self.enemies.append(Enemy(main_x + 100, main_y + 400))
+        for pos in [
+            (main_x + 120, main_y + 120), (main_x + 420, main_y + 140),
+            (main_x + 680, main_y + 200), (main_x + 980, main_y + 200),
+            (main_x + 300, main_y + 700), (main_x + 520, main_y + 800),
+            (main_x + 840, main_y + 700), (main_x + 1050, main_y + 520),
+            (main_x + 200, main_y + 900), (main_x + 900, main_y + 900),
+        ]:
+            self.enemies.append(Enemy(*pos))
         
         # Enemies in small building
-        self.enemies.append(Enemy(small_x + 80, small_y + 60))
-        self.enemies.append(Enemy(small_x + 220, small_y + 180))
+        for pos in [
+            (small_x + 120, small_y + 120), (small_x + 400, small_y + 120),
+            (small_x + 200, small_y + 360), (small_x + 460, small_y + 380),
+        ]:
+            self.enemies.append(Enemy(*pos))
+        
+        # Enemies outside
+        for pos in [
+            (700, 900), (900, 1050), (600, 450), (800, 300)
+        ]:
+            self.enemies.append(Enemy(*pos))
     
     def run(self):
         while self.running:
@@ -478,6 +573,8 @@ class Game:
     def player_punch(self):
         if self.player.punch():
             px, py = self.player.get_punch_hitbox()
+            punch_angle = self.player.facing_angle
+            
             for enemy in self.enemies:
                 if enemy.alive:
                     dx = enemy.x - px
@@ -488,12 +585,44 @@ class Game:
                         if enemy.hp <= 0:
                             enemy.alive = False
                             self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+            
+            # Door punch (violent open + damage cone)
+            for door in self.doors:
+                if door.is_open:
+                    continue
+                door_center = pygame.Vector2(door.x + door.width / 2, door.y + door.height / 2)
+                to_door = door_center - pygame.Vector2(self.player.x, self.player.y)
+                if to_door.length() > DOOR_PUNCH_RANGE:
+                    continue
+                door_angle = math.atan2(to_door.y, to_door.x)
+                if abs(angle_difference(door_angle, punch_angle)) > DOOR_PUNCH_ANGLE / 2:
+                    continue
+                door.force_open()
+                
+                # Apply damage to entities near door within 180-degree swing
+                for target in [self.player] + [e for e in self.enemies if e.alive]:
+                    if not target.alive:
+                        continue
+                    vec = pygame.Vector2(target.x, target.y) - door_center
+                    if vec.length() > DOOR_PUNCH_RANGE:
+                        continue
+                    target_angle = math.atan2(vec.y, vec.x)
+                    if abs(angle_difference(target_angle, door_angle)) <= DOOR_PUNCH_ANGLE / 2:
+                        target.hp -= DOOR_PUNCH_DAMAGE
+                        if target.hp <= 0 and target.alive:
+                            target.alive = False
+                            is_player = isinstance(target, Player)
+                            self.corpses.append(Corpse(target.x, target.y, target.radius, is_player))
+                break
     
     def update(self, dt: float):
         keys = pygame.key.get_pressed()
+        self.camera_offset.x = max(0, min(self.player.x - SCREEN_WIDTH / 2, WORLD_WIDTH - SCREEN_WIDTH))
+        self.camera_offset.y = max(0, min(self.player.y - SCREEN_HEIGHT / 2, WORLD_HEIGHT - SCREEN_HEIGHT))
         mouse_pos = pygame.mouse.get_pos()
+        world_mouse = (mouse_pos[0] + self.camera_offset.x, mouse_pos[1] + self.camera_offset.y)
         
-        self.player.update(dt, keys, mouse_pos)
+        self.player.update(dt, keys, world_mouse)
         self.player.move(dt, self.walls, self.doors)
         
         # Check door pushing
@@ -518,28 +647,31 @@ class Game:
     def draw(self):
         self.screen.fill(BLACK)
         
+        self.camera_offset.x = max(0, min(self.player.x - SCREEN_WIDTH / 2, WORLD_WIDTH - SCREEN_WIDTH))
+        self.camera_offset.y = max(0, min(self.player.y - SCREEN_HEIGHT / 2, WORLD_HEIGHT - SCREEN_HEIGHT))
+        
         # Draw floor areas (visual only)
-        pygame.draw.rect(self.screen, DARK_GRAY, (620, 120, 560, 460))  # Main building floor
-        pygame.draw.rect(self.screen, DARK_GRAY, (120, 170, 260, 210))  # Small building floor
+        pygame.draw.rect(self.screen, DARK_GRAY, (1000 - self.camera_offset.x + 24, 200 - self.camera_offset.y + 24, 1200 - 48, 1000 - 48))
+        pygame.draw.rect(self.screen, DARK_GRAY, (150 - self.camera_offset.x + 24, 250 - self.camera_offset.y + 24, 600 - 48, 500 - 48))
         
         # Draw doors
         for door in self.doors:
-            door.draw(self.screen)
+            door.draw(self.screen, self.camera_offset)
         
         # Draw walls
         for wall in self.walls:
-            wall.draw(self.screen)
+            wall.draw(self.screen, self.camera_offset)
         
         # Draw corpses
         for corpse in self.corpses:
-            corpse.draw(self.screen)
+            corpse.draw(self.screen, self.camera_offset)
         
         # Draw enemies
         for enemy in self.enemies:
-            enemy.draw(self.screen)
+            enemy.draw(self.screen, self.camera_offset)
         
         # Draw player
-        self.player.draw(self.screen)
+        self.player.draw(self.screen, self.camera_offset)
         
         # Draw UI
         font = pygame.font.SysFont(None, 24)
