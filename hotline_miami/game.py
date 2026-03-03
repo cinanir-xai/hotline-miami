@@ -5,7 +5,7 @@ import sys
 from pygame.math import Vector2
 
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GAME_TITLE, Colors
-from core import Camera, InputHandler, GroundRenderer
+from core import Camera, InputHandler, GroundRenderer, ParticleSystem
 from entities import Player
 
 
@@ -27,14 +27,15 @@ class Game:
         self.input_handler = InputHandler()
         self.camera = Camera()
         self.ground = GroundRenderer(seed=42)
+        self.particle_system = ParticleSystem()
         
         # Initialize entities
         self.player = Player(0, 0)
+        self.player.set_punch_callback(self.particle_system.spawn_punch_effect)
         self.camera.set_target(self.player)
         
         # Entity lists for future expansion
         self.entities = []
-        self.particles = []
         
     def run(self):
         """Main game loop."""
@@ -86,10 +87,8 @@ class Game:
         # Remove dead entities
         self.entities = [e for e in self.entities if e.alive]
         
-        # Update particles
-        for particle in self.particles:
-            particle.update(dt)
-        self.particles = [p for p in self.particles if p.alive]
+        # Update particles/effects
+        self.particle_system.update(dt)
     
     def _draw(self):
         """Render the game."""
@@ -110,9 +109,8 @@ class Game:
             if entity.alive:
                 entity.draw(self.screen, camera_offset)
         
-        # Draw particles
-        for particle in self.particles:
-            particle.draw(self.screen, camera_offset)
+        # Draw particles/effects
+        self.particle_system.draw(self.screen, camera_offset)
         
         # Draw UI
         self._draw_ui()

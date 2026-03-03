@@ -9,7 +9,8 @@ from .entity import Entity
 from config import (
     PLAYER_SIZE, PLAYER_SPEED, PLAYER_ACCEL, PLAYER_DECEL,
     PLAYER_ATTACK_RANGE, PLAYER_ATTACK_COOLDOWN, PLAYER_ATTACK_DAMAGE,
-    PUNCH_DURATION, PUNCH_EXTEND_DISTANCE, Colors
+    PUNCH_DURATION, PUNCH_EXTEND_DISTANCE, Colors,
+    SCREEN_WIDTH, SCREEN_HEIGHT
 )
 from utils.math_utils import lerp, clamp, angle_from_vec, vec_from_angle
 
@@ -148,11 +149,11 @@ class Player(Entity):
         self.draw_shadow(surface, camera_offset, radius=16, alpha=50)
         
         # Calculate positions
-        head_y = pos.y - 8 + self.bob_offset
+        head_center = Vector2(pos.x, pos.y - 8 + self.bob_offset) + self.facing * 2
         shoulder_y = pos.y + 5 + self.bob_offset * 0.5
         
         # Get arm positions based on facing direction
-        arm_offset = self._get_arm_offsets(pos, head_y, shoulder_y)
+        arm_offset = self._get_arm_offsets(pos, shoulder_y)
         
         # Draw arms (behind body)
         self._draw_arms(surface, arm_offset, behind=True)
@@ -161,7 +162,7 @@ class Player(Entity):
         self._draw_shoulders(surface, pos, shoulder_y)
         
         # Draw head
-        self._draw_head(surface, pos, head_y)
+        self._draw_head(surface, head_center)
         
         # Draw arms (in front of body)
         self._draw_arms(surface, arm_offset, behind=False)
@@ -169,19 +170,28 @@ class Player(Entity):
         # Draw attack range indicator when attacking
         if self.is_attacking:
             self._draw_attack_indicator(surface, pos)
+        
+        # Draw subtle aim indicator when idle
+        if not self.is_attacking:
+            self._draw_aim_indicator(surface, pos)
     
-    def _draw_attack_indicator(self, surface: pygame.Surface, pos: Vector2):
+    def _draw_attack_indicator(self, surface: pygame.Surface, screen_pos: Vector2):
         """Draw a subtle attack indicator."""
         angle_rad = math.radians(self.attack_angle)
-        end_x = pos.x + math.cos(angle_rad) * PLAYER_ATTACK_RANGE
-        end_y = pos.y + math.sin(angle_rad) * PLAYER_ATTACK_RANGE
+        end_x = screen_pos.x + math.cos(angle_rad) * PLAYER_ATTACK_RANGE
+        end_y = screen_pos.y + math.sin(angle_rad) * PLAYER_ATTACK_RANGE
         
         # Very subtle line
-        s = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        pygame.draw.line(s, (255, 255, 255, 30), (pos.x, pos.y), (end_x, end_y), 1)
-        surface.blit(s, (0, 0))
+        pygame.draw.line(surface, (255, 255, 255, 30), (screen_pos.x, screen_pos.y), (end_x, end_y), 1)
+
+    def _draw_aim_indicator(self, surface: pygame.Surface, screen_pos: Vector2):
+        """Draw a subtle aim indicator when idle."""
+        angle_rad = math.radians(angle_from_vec(self.facing))
+        end_x = screen_pos.x + math.cos(angle_rad) * 20
+        end_y = screen_pos.y + math.sin(angle_rad) * 20
+        pygame.draw.line(surface, (255, 255, 255, 20), (screen_pos.x, screen_pos.y), (end_x, end_y), 1)
     
-    def _get_arm_offsets(self, pos: Vector2, head_y: float, shoulder_y: float) -> dict:
+    def _get_arm_offsets(self, pos: Vector2, shoulder_y: float) -> dict:
         """Calculate arm positions based on facing direction."""
         angle = angle_from_vec(self.facing)
         
@@ -251,12 +261,12 @@ class Player(Entity):
         ]
         pygame.draw.lines(surface, Colors.JACKET_DARK, False, collar_points, 2)
     
-    def _draw_head(self, surface: pygame.Surface, pos: Vector2, head_y: float):
+    def _draw_head(self, surface: pygame.Surface, head_center: Vector2):
         """Draw the head with detailed features from top-down view."""
         # Head base (skin)
         head_rect = pygame.Rect(
-            pos.x - self.head_radius,
-            head_y - self.head_radius,
+            head_center.x - self.head_radius,
+            head_center.y - self.head_radius,
             self.head_radius * 2,
             self.head_radius * 2
         )
@@ -266,23 +276,32 @@ class Player(Entity):
         
         # Face direction indicator (nose/chin shadow area)
         facing_angle = angle_from_vec(self.facing)
-        nose_offset = vec_from_angle(facing_angle, self.head_radius * 0.5)
-        nose_pos = (pos.x + nose_offset.x, head_y + nose_offset.y)
+        nose_offset = vec_from_angle(facing_angle, self.head_radius * 0.55)
+        nose_pos = (head_center.x + nose_offset.x, head_center.y + nose_offset.y)
         
         # Subtle nose shadow
         pygame.draw.ellipse(surface, Colors.SKIN_SHADOW,
                            (nose_pos[0] - 3, nose_pos[1] - 2, 6, 4))
         
+        # Directional brow shadow to emphasize facing
+        brow_offset = vec_from_angle(facing_angle, self.head_radius * 0.25)
+        pygame.draw.arc(surface, Colors.SKIN_SHADOW,
+                       (head_center.x - self.head_radius + brow_offset.x * 0.2,
+                        head_center.y - self.head_radius + brow_offset.y * 0.2,
+                        self.head_radius * 2, self.head_radius * 2),
+                       math.radians(facing_angle - 50),
+                       math.radians(facing_angle + 50), 2)
+        
         # Hair - drawn based on facing direction
-        self._draw_hair(surface, pos, head_y, facing_angle)
+        self._draw_hair(surface, head_center, facing_angle)
         
         # Ears (visible from sides when facing left/right)
-        self._draw_ears(surface, pos, head_y, facing_angle)
+        self._draw_ears(surface, head_center, facing_angle)
         
         # Eyes (subtle, visible from top when looking up/down)
-        self._draw_eyes(surface, pos, head_y, facing_angle)
+        self._draw_eyes(surface, head_center, facing_angle)
     
-    def _draw_hair(self, surface: pygame.Surface, pos: Vector2, head_y: float, 
+    def _draw_hair(self, surface: pygame.Surface, head_center: Vector2, 
                    facing_angle: float):
         """Draw hair with direction-based styling."""
         hair_color = Colors.HAIR_BROWN
@@ -291,8 +310,8 @@ class Player(Entity):
         # Hair is always on the back of the head relative to facing
         back_angle = facing_angle + 180
         hair_center = vec_from_angle(back_angle, self.head_radius * 0.3)
-        hair_x = pos.x + hair_center.x
-        hair_y = head_y + hair_center.y
+        hair_x = head_center.x + hair_center.x
+        hair_y = head_center.y + hair_center.y
         
         # Main hair mass
         hair_radius = self.head_radius * 0.85
@@ -317,12 +336,12 @@ class Player(Entity):
         # Hairline/forehead shadow
         forehead_vec = vec_from_angle(facing_angle, self.head_radius * 0.6)
         pygame.draw.arc(surface, hair_dark,
-                       (pos.x - self.head_radius, head_y - self.head_radius,
+                       (head_center.x - self.head_radius, head_center.y - self.head_radius,
                         self.head_radius * 2, self.head_radius * 2),
                        math.radians(facing_angle - 60),
                        math.radians(facing_angle + 60), 2)
     
-    def _draw_ears(self, surface: pygame.Surface, pos: Vector2, head_y: float,
+    def _draw_ears(self, surface: pygame.Surface, head_center: Vector2,
                    facing_angle: float):
         """Draw ears visible from the sides."""
         ear_width = 4
@@ -330,21 +349,21 @@ class Player(Entity):
         
         # Left ear (visible when not facing directly right)
         if not (45 < facing_angle < 135):  # Not facing down
-            left_ear_x = pos.x - self.head_radius - ear_width * 0.5
-            left_ear_y = head_y
+            left_ear_x = head_center.x - self.head_radius - ear_width * 0.5
+            left_ear_y = head_center.y
             pygame.draw.ellipse(surface, Colors.SKIN_MID,
                               (left_ear_x - ear_width/2, left_ear_y - ear_height/2,
                                ear_width, ear_height))
         
         # Right ear (visible when not facing directly left)
         if not (225 < facing_angle < 315):  # Not facing up
-            right_ear_x = pos.x + self.head_radius + ear_width * 0.5
-            right_ear_y = head_y
+            right_ear_x = head_center.x + self.head_radius + ear_width * 0.5
+            right_ear_y = head_center.y
             pygame.draw.ellipse(surface, Colors.SKIN_MID,
                               (right_ear_x - ear_width/2, right_ear_y - ear_height/2,
                                ear_width, ear_height))
     
-    def _draw_eyes(self, surface: pygame.Surface, pos: Vector2, head_y: float,
+    def _draw_eyes(self, surface: pygame.Surface, head_center: Vector2,
                    facing_angle: float):
         """Draw eyes visible when facing up or down."""
         eye_size = 2
@@ -357,21 +376,21 @@ class Player(Entity):
         if vertical_factor > 0.3:
             # Determine eye Y position based on facing
             if 0 <= facing_angle <= 180:  # Facing down-ish
-                eye_y = head_y + eye_offset_y
+                eye_y = head_center.y + eye_offset_y
             else:  # Facing up-ish
-                eye_y = head_y - eye_offset_y
+                eye_y = head_center.y - eye_offset_y
             
             # Left eye
             pygame.draw.circle(surface, Colors.WHITE,
-                             (pos.x - eye_offset_x, eye_y), eye_size)
+                             (head_center.x - eye_offset_x, eye_y), eye_size)
             pygame.draw.circle(surface, Colors.BLACK,
-                             (pos.x - eye_offset_x, eye_y), eye_size - 0.5)
+                             (head_center.x - eye_offset_x, eye_y), eye_size - 0.5)
             
             # Right eye
             pygame.draw.circle(surface, Colors.WHITE,
-                             (pos.x + eye_offset_x, eye_y), eye_size)
+                             (head_center.x + eye_offset_x, eye_y), eye_size)
             pygame.draw.circle(surface, Colors.BLACK,
-                             (pos.x + eye_offset_x, eye_y), eye_size - 0.5)
+                             (head_center.x + eye_offset_x, eye_y), eye_size - 0.5)
     
     def _draw_arms(self, surface: pygame.Surface, arm_offset: dict, behind: bool):
         """Draw arms."""
