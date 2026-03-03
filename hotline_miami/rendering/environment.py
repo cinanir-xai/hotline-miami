@@ -46,6 +46,7 @@ def draw_building_floors(
     camera_offset: pygame.Vector2,
     main_building: tuple,
     small_building: tuple,
+    large_building: tuple,
 ) -> None:
     cx, cy = camera_offset.x, camera_offset.y
 
@@ -62,7 +63,12 @@ def draw_building_floors(
         pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect.top), (x, floor_rect.bottom), 2)
 
     sx, sy, sw, sh = small_building
-    floor_rect2 = pygame.Rect(sx + wall_thickness - cx, sy + wall_thickness - cy, sw - wall_thickness * 2, sh - wall_thickness * 2)
+    floor_rect2 = pygame.Rect(
+        sx + wall_thickness - cx,
+        sy + wall_thickness - cy,
+        sw - wall_thickness * 2,
+        sh - wall_thickness * 2,
+    )
     pygame.draw.rect(screen, config.DARK_GRAY, floor_rect2)
 
     for y in range(int(floor_rect2.top), int(floor_rect2.bottom), plank_spacing):
@@ -70,3 +76,18 @@ def draw_building_floors(
 
     for x in range(int(floor_rect2.left), int(floor_rect2.right), 90):
         pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect2.top), (x, floor_rect2.bottom), 2)
+
+    lx, ly, lw, lh = large_building
+    floor_rect3 = pygame.Rect(
+        lx + wall_thickness - cx,
+        ly + wall_thickness - cy,
+        lw - wall_thickness * 2,
+        lh - wall_thickness * 2,
+    )
+    pygame.draw.rect(screen, config.DARK_GRAY, floor_rect3)
+
+    for y in range(int(floor_rect3.top), int(floor_rect3.bottom), plank_spacing):
+        pygame.draw.line(screen, config.GRAY, (floor_rect3.left, y), (floor_rect3.right, y), 1)
+
+    for x in range(int(floor_rect3.left), int(floor_rect3.right), 90):
+        pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect3.top), (x, floor_rect3.bottom), 2)

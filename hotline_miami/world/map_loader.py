@@ -233,4 +233,145 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
             enemy.bat_durability = config.BAT_DURABILITY
         enemies.append(enemy)
 
-    return {"main": main_building, "small": small_building}
+    large_x, large_y = 450, 850
+    large_w, large_h = 1500, 1000
+    large_door_n = (large_x + 640, door_width)
+    large_door_s = (large_x + 640, door_width)
+    large_door_w = (large_y + 430, door_height)
+    large_door_e = (large_y + 430, door_height)
+
+    walls.append(Wall(large_x, large_y, large_door_n[0] - large_x, wall_thickness))
+    walls.append(
+        Wall(
+            large_door_n[0] + large_door_n[1],
+            large_y,
+            large_w - (large_door_n[0] - large_x) - large_door_n[1],
+            wall_thickness,
+        )
+    )
+    doors.append(Door(large_door_n[0], large_y, large_door_n[1], wall_thickness, hinge_left=True))
+
+    walls.append(Wall(large_x, large_y + large_h - wall_thickness, large_door_s[0] - large_x, wall_thickness))
+    walls.append(
+        Wall(
+            large_door_s[0] + large_door_s[1],
+            large_y + large_h - wall_thickness,
+            large_w - (large_door_s[0] - large_x) - large_door_s[1],
+            wall_thickness,
+        )
+    )
+    doors.append(
+        Door(
+            large_door_s[0],
+            large_y + large_h - wall_thickness,
+            large_door_s[1],
+            wall_thickness,
+            hinge_left=False,
+        )
+    )
+
+    walls.append(Wall(large_x, large_y, wall_thickness, large_door_w[0] - large_y))
+    walls.append(
+        Wall(
+            large_x,
+            large_door_w[0] + large_door_w[1],
+            wall_thickness,
+            large_h - (large_door_w[0] - large_y) - large_door_w[1],
+        )
+    )
+    doors.append(Door(large_x, large_door_w[0], wall_thickness, large_door_w[1], hinge_left=True))
+
+    walls.append(
+        Wall(large_x + large_w - wall_thickness, large_y, wall_thickness, large_door_e[0] - large_y)
+    )
+    walls.append(
+        Wall(
+            large_x + large_w - wall_thickness,
+            large_door_e[0] + large_door_e[1],
+            wall_thickness,
+            large_h - (large_door_e[0] - large_y) - large_door_e[1],
+        )
+    )
+    doors.append(
+        Door(
+            large_x + large_w - wall_thickness,
+            large_door_e[0],
+            wall_thickness,
+            large_door_e[1],
+            hinge_left=False,
+        )
+    )
+
+    large_building = (large_x, large_y, large_w, large_h)
+
+    corridor_x = large_x + 520
+    corridor_w = 140
+    walls.append(Wall(corridor_x, large_y + wall_thickness, corridor_w, wall_thickness))
+    walls.append(Wall(corridor_x, large_y + large_h - wall_thickness * 2, corridor_w, wall_thickness))
+    walls.append(Wall(corridor_x, large_y + wall_thickness * 2, wall_thickness, large_h - wall_thickness * 4))
+    walls.append(
+        Wall(
+            corridor_x + corridor_w - wall_thickness,
+            large_y + wall_thickness * 2,
+            wall_thickness,
+            large_h - wall_thickness * 4,
+        )
+    )
+    doors.append(Door(corridor_x, large_y + 360, corridor_w, wall_thickness, hinge_left=True))
+    doors.append(
+        Door(
+            corridor_x,
+            large_y + large_h - 360,
+            corridor_w,
+            wall_thickness,
+            hinge_left=False,
+        )
+    )
+
+    walls.append(Wall(large_x + wall_thickness, large_y + 260, 360, wall_thickness))
+    walls.append(Wall(large_x + wall_thickness, large_y + 260, wall_thickness, 260))
+    walls.append(Wall(large_x + 380, large_y + 260, wall_thickness, 260))
+    doors.append(Door(large_x + 220, large_y + 260, door_width, wall_thickness, hinge_left=True))
+    doors.append(Door(large_x + 380, large_y + 360, wall_thickness, door_height, hinge_left=True))
+
+    walls.append(Wall(large_x + wall_thickness, large_y + 620, 360, wall_thickness))
+    walls.append(Wall(large_x + wall_thickness, large_y + 620, wall_thickness, 260))
+    walls.append(Wall(large_x + 380, large_y + 620, wall_thickness, 260))
+    doors.append(Door(large_x + 220, large_y + 620, door_width, wall_thickness, hinge_left=False))
+    doors.append(Door(large_x + 380, large_y + 720, wall_thickness, door_height, hinge_left=False))
+
+    east_room_x = large_x + 760
+    walls.append(Wall(east_room_x, large_y + 260, 520, wall_thickness))
+    walls.append(Wall(east_room_x, large_y + 260, wall_thickness, 260))
+    walls.append(Wall(east_room_x + 520 - wall_thickness, large_y + 260, wall_thickness, 260))
+    doors.append(Door(east_room_x + 200, large_y + 260, door_width, wall_thickness, hinge_left=True))
+    doors.append(Door(east_room_x, large_y + 360, wall_thickness, door_height, hinge_left=False))
+
+    walls.append(Wall(east_room_x, large_y + 620, 520, wall_thickness))
+    walls.append(Wall(east_room_x, large_y + 620, wall_thickness, 260))
+    walls.append(Wall(east_room_x + 520 - wall_thickness, large_y + 620, wall_thickness, 260))
+    doors.append(Door(east_room_x + 200, large_y + 620, door_width, wall_thickness, hinge_left=False))
+    doors.append(Door(east_room_x, large_y + 720, wall_thickness, door_height, hinge_left=True))
+
+    for pos in [
+        (large_x + 180, large_y + 340),
+        (large_x + 260, large_y + 720),
+        (corridor_x + 40, large_y + 480),
+        (east_room_x + 160, large_y + 340),
+        (east_room_x + 380, large_y + 520),
+        (east_room_x + 260, large_y + 760),
+    ]:
+        enemy = Enemy(*pos)
+        roll = random.random()
+        if roll < config.PISTOL_SPAWN_CHANCE:
+            enemy.has_pistol = True
+            enemy.pistol_ammo = config.PISTOL_AMMO
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE:
+            enemy.has_pipe = True
+            enemy.pipe_durability = config.PIPE_DURABILITY
+        elif roll < config.PISTOL_SPAWN_CHANCE + config.PIPE_SPAWN_CHANCE + config.BAT_SPAWN_CHANCE:
+            enemy.has_bat = True
+            enemy.bat_durability = config.BAT_DURABILITY
+        enemies.append(enemy)
+
+    return {"main": main_building, "small": small_building, "large": large_building}

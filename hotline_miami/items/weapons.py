@@ -103,11 +103,19 @@ class PistolItem:
 
 
 class BulletProjectile:
-    def __init__(self, x: float, y: float, velocity: pygame.Vector2, source_is_player: bool):
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        velocity: pygame.Vector2,
+        source_is_player: bool,
+        owner_id: int | None = None,
+    ):
         self.x = x
         self.y = y
         self.velocity = velocity
         self.source_is_player = source_is_player
+        self.owner_id = owner_id
         self.alive = True
         self.life = config.PISTOL_BULLET_LIFE
 

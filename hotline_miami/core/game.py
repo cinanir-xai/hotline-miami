@@ -56,6 +56,7 @@ class Game:
         buildings = create_map(self.walls, self.doors, self.enemies)
         self.main_building = buildings["main"]
         self.small_building = buildings["small"]
+        self.large_building = buildings["large"]
 
     def run(self) -> None:
         while self.running:
@@ -256,6 +257,8 @@ class Game:
                 for enemy in self.enemies:
                     if not enemy.alive:
                         continue
+                    if bullet.owner_id is not None and id(enemy) == bullet.owner_id:
+                        continue
                     dist = math.hypot(enemy.x - bullet.x, enemy.y - bullet.y)
                     if dist <= enemy.radius + 6:
                         enemy.hp -= config.PISTOL_DAMAGE
@@ -311,7 +314,7 @@ class Game:
             if enemy.can_shoot(self.player):
                 facing = math.atan2(self.player.y - enemy.y, self.player.x - enemy.x)
                 enemy.shoot()
-                self.spawn_bullet(enemy.x, enemy.y, facing, source_is_player=False)
+                self.spawn_bullet(enemy.x, enemy.y, facing, source_is_player=False, owner_id=id(enemy))
 
             if enemy.can_punch(self.player):
                 facing = math.atan2(self.player.y - enemy.y, self.player.x - enemy.x)
@@ -374,10 +377,17 @@ class Game:
         for _ in range(3):
             self.bat_breaks.append(BatBreakPiece(x, y))
 
-    def spawn_bullet(self, x: float, y: float, angle: float, source_is_player: bool) -> None:
+    def spawn_bullet(
+        self,
+        x: float,
+        y: float,
+        angle: float,
+        source_is_player: bool,
+        owner_id: int | None = None,
+    ) -> None:
         direction = pygame.Vector2(math.cos(angle), math.sin(angle))
         velocity = direction * config.PISTOL_BULLET_SPEED
-        bullet = BulletProjectile(x + direction.x * 8, y + direction.y * 8, velocity, source_is_player)
+        bullet = BulletProjectile(x + direction.x * 8, y + direction.y * 8, velocity, source_is_player, owner_id)
         self.bullet_projectiles.append(bullet)
 
     def player_shoot(self) -> None:
@@ -504,7 +514,13 @@ class Game:
         )
 
         draw_dirt_ground(self.screen, self.camera_offset)
-        draw_building_floors(self.screen, self.camera_offset, self.main_building, self.small_building)
+        draw_building_floors(
+            self.screen,
+            self.camera_offset,
+            self.main_building,
+            self.small_building,
+            self.large_building,
+        )
 
         for bat in self.bat_items:
             bat.draw(self.screen, self.camera_offset)
