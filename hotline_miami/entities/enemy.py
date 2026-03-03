@@ -31,6 +31,7 @@ class Enemy(Entity):
         self.bat_durability = config.BAT_DURABILITY
         self.pipe_durability = config.PIPE_DURABILITY
         self.pistol_ammo = config.PISTOL_AMMO
+        self.gun_aim_timer = 0.0
 
     def update(self, dt: float, player, walls: list, doors: list) -> None:
         if not self.alive:
@@ -62,6 +63,12 @@ class Enemy(Entity):
                         blocked = True
                         break
             self.can_see_player = not blocked
+
+        if self.has_pistol or self.has_smg:
+            if self.can_see_player:
+                self.gun_aim_timer += dt
+            else:
+                self.gun_aim_timer = 0.0
 
         attack_range = config.BAT_RANGE if (self.has_bat or self.has_pipe) else config.ENEMY_PUNCH_RANGE
         if self.has_pistol or self.has_smg:
@@ -110,10 +117,14 @@ class Enemy(Entity):
         if self.has_smg:
             if not self.can_see_player:
                 return False
+            if self.gun_aim_timer < config.GUN_AIM_TIME:
+                return False
             return True
         if not self.has_pistol or self.pistol_ammo <= 0:
             return False
         if not self.can_see_player:
+            return False
+        if self.gun_aim_timer < config.GUN_AIM_TIME:
             return False
         dx = player.x - self.x
         dy = player.y - self.y

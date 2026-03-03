@@ -52,6 +52,7 @@ class Game:
         self.player_pistol_firing = False
         self.throw_charge = 0.0
         self.throw_charging = False
+        self.throw_cooldown = 0.0
         self.camera_offset = pygame.Vector2(0, 0)
         self.impact_flashes = []
         random.seed()
@@ -87,8 +88,9 @@ class Game:
                     self.player_attack()
                 elif event.button == 3:
                     if self.player_has_bat or self.player_has_pipe or self.player_has_pistol:
-                        self.throw_charging = True
-                        self.throw_charge = 0.0
+                        if self.throw_cooldown <= 0:
+                            self.throw_charging = True
+                            self.throw_charge = 0.0
                     else:
                         self.try_pickup_weapon()
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -96,11 +98,13 @@ class Game:
                     if self.throw_charging:
                         self.throw_charging = False
                         if self.player_has_bat or self.player_has_pipe:
-                            if self.throw_charge >= config.BAT_THROW_CHARGE:
+                            if self.throw_charge >= config.BAT_THROW_CHARGE and self.throw_cooldown <= 0:
                                 self.throw_weapon()
+                                self.throw_cooldown = config.WEAPON_THROW_COOLDOWN
                         elif self.player_has_pistol:
-                            if self.throw_charge >= config.PISTOL_THROW_CHARGE:
+                            if self.throw_charge >= config.PISTOL_THROW_CHARGE and self.throw_cooldown <= 0:
                                 self.throw_weapon()
+                                self.throw_cooldown = config.WEAPON_THROW_COOLDOWN
                         else:
                             self.try_pickup_weapon()
 
@@ -141,7 +145,7 @@ class Game:
                         enemy.hp -= 1
                         if enemy.hp <= 0:
                             enemy.alive = False
-                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius, is_boss=enemy.is_boss))
                             drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                             self.drop_enemy_weapons(enemy, drop_offset)
 
@@ -210,6 +214,8 @@ class Game:
         self.player.x = max(self.player.radius, min(config.WORLD_WIDTH - self.player.radius, self.player.x))
         self.player.y = max(self.player.radius, min(config.WORLD_HEIGHT - self.player.radius, self.player.y))
 
+        if self.throw_cooldown > 0:
+            self.throw_cooldown -= dt
         if self.throw_charging:
             self.throw_charge += dt
 
@@ -234,7 +240,7 @@ class Game:
                         projectile.alive = False
                         if enemy.hp <= 0:
                             enemy.alive = False
-                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius, is_boss=enemy.is_boss))
                             drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                             self.drop_enemy_weapons(enemy, drop_offset)
                         if projectile.durability <= 0:
@@ -256,7 +262,7 @@ class Game:
                         bullet.alive = False
                         if enemy.hp <= 0:
                             enemy.alive = False
-                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius, is_boss=enemy.is_boss))
                             drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                             self.drop_enemy_weapons(enemy, drop_offset)
                         break
@@ -272,7 +278,7 @@ class Game:
                         bullet.alive = False
                         if enemy.hp <= 0:
                             enemy.alive = False
-                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius))
+                            self.corpses.append(Corpse(enemy.x, enemy.y, enemy.radius, is_boss=enemy.is_boss))
                             drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                             self.drop_enemy_weapons(enemy, drop_offset)
                         break
@@ -342,14 +348,14 @@ class Game:
             return
         for pistol in list(self.pistol_items):
             dist = math.hypot(pistol.x - self.player.x, pistol.y - self.player.y)
-            if dist <= config.PISTOL_PICKUP_RANGE:
+            if dist <= config.PISTOL_PICKUP_RANGE + config.WEAPON_PICKUP_EXTRA:
                 self.player_has_pistol = True
                 self.player_pistol_ammo = pistol.ammo
                 self.pistol_items.remove(pistol)
                 return
         for bat in list(self.bat_items):
             dist = math.hypot(bat.x - self.player.x, bat.y - self.player.y)
-            if dist <= config.BAT_PICKUP_RANGE:
+            if dist <= config.BAT_PICKUP_RANGE + config.WEAPON_PICKUP_EXTRA:
                 if bat.is_pipe:
                     self.player_has_pipe = True
                     self.player_pipe_durability = bat.durability
@@ -430,6 +436,9 @@ class Game:
                 PistolItem(enemy.x + drop_offset.x, enemy.y + drop_offset.y, enemy.pistol_ammo)
             )
             enemy.has_pistol = False
+        if enemy.has_smg:
+            self.pistol_items.append(PistolItem(enemy.x + drop_offset.x, enemy.y + drop_offset.y, ammo=config.SMG_AMMO))
+            enemy.has_smg = False
 
     def apply_weapon_attack(
         self,
@@ -467,8 +476,8 @@ class Game:
                 if target.hp <= 0:
                     target.alive = False
                     is_player = isinstance(target, Player)
-                    self.corpses.append(Corpse(target.x, target.y, target.radius, is_player))
-                    if isinstance(target, Enemy) and (target.has_bat or target.has_pipe):
+                    self.corpses.append(Corpse(target.x, target.y, target.radius, is_player, is_boss=isinstance(target, Enemy) and target.is_boss))
+                    if isinstance(target, Enemy) and (target.has_bat or target.has_pipe or target.has_smg):
                         drop_offset = pygame.Vector2(random.uniform(-16, 16), random.uniform(-16, 16))
                         if target.has_bat:
                             self.bat_items.append(
@@ -485,6 +494,9 @@ class Game:
                                 )
                             )
                             target.has_pipe = False
+                        if target.has_smg:
+                            self.pistol_items.append(PistolItem(target.x + drop_offset.x, target.y + drop_offset.y, ammo=config.SMG_AMMO))
+                            target.has_smg = False
         if hit_player:
             self.impact_flashes.append(config.BAT_IMPACT_FLASH)
         if source_is_player and hit_any:

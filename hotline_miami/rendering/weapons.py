@@ -8,7 +8,14 @@ import pygame
 from hotline_miami import config
 
 
-def draw_bat_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: float, offset: pygame.Vector2, scale: float = 1.0) -> None:
+def draw_bat_sprite(
+    screen: pygame.Surface,
+    center: pygame.Vector2,
+    angle: float,
+    offset: pygame.Vector2,
+    scale: float = 1.0,
+    outline: bool = False,
+) -> None:
     """Draw a cleaner bat sprite using a shaft + barrel + grip."""
     length = 28 * scale
     barrel = 10 * scale
@@ -27,6 +34,13 @@ def draw_bat_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: float
         (shaft_end - perp * (thickness * 0.35)),
         (shaft_end + perp * (thickness * 0.35)),
     ]
+    if outline:
+        pygame.draw.polygon(
+            screen,
+            config.YELLOW,
+            [(p.x - offset.x, p.y - offset.y) for p in shaft_points],
+            2,
+        )
     pygame.draw.polygon(
         screen,
         config.BROWN,
@@ -35,6 +49,14 @@ def draw_bat_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: float
 
     barrel_center = center + direction * (length * 0.55)
     barrel_radius = barrel * 0.55
+    if outline:
+        pygame.draw.circle(
+            screen,
+            config.YELLOW,
+            (int(barrel_center.x - offset.x), int(barrel_center.y - offset.y)),
+            int(barrel_radius + 2),
+            2,
+        )
     pygame.draw.circle(
         screen,
         config.DARK_BROWN,
@@ -51,7 +73,14 @@ def draw_bat_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: float
     )
 
 
-def draw_pipe_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: float, offset: pygame.Vector2, scale: float = 1.0) -> None:
+def draw_pipe_sprite(
+    screen: pygame.Surface,
+    center: pygame.Vector2,
+    angle: float,
+    offset: pygame.Vector2,
+    scale: float = 1.0,
+    outline: bool = False,
+) -> None:
     """Draw a metallic pipe with a bright highlight."""
     length = 30 * scale
     thickness = 5 * scale
@@ -67,6 +96,13 @@ def draw_pipe_sprite(screen: pygame.Surface, center: pygame.Vector2, angle: floa
         (end - perp * thickness),
         (end + perp * thickness),
     ]
+    if outline:
+        pygame.draw.polygon(
+            screen,
+            config.YELLOW,
+            [(p.x - offset.x, p.y - offset.y) for p in pipe_points],
+            2,
+        )
     pygame.draw.polygon(
         screen,
         config.METAL_GRAY,
@@ -99,6 +135,7 @@ def draw_pistol_sprite(
     offset: pygame.Vector2,
     scale: float = 1.0,
     firing: bool = False,
+    outline: bool = False,
 ) -> None:
     """Draw a compact pistol sprite with slide and grip."""
     length = 18 * scale
@@ -117,6 +154,13 @@ def draw_pistol_sprite(
         slide_end + perp * height,
         slide_end,
     ]
+    if outline:
+        pygame.draw.polygon(
+            screen,
+            config.YELLOW,
+            [(p.x - offset.x, p.y - offset.y) for p in slide_points],
+            2,
+        )
     pygame.draw.polygon(
         screen,
         config.DARK_METAL,

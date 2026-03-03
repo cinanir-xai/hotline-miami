@@ -26,11 +26,12 @@ class Blood:
 
 
 class Corpse:
-    def __init__(self, x: float, y: float, radius: float, is_player: bool = False):
+    def __init__(self, x: float, y: float, radius: float, is_player: bool = False, is_boss: bool = False):
         self.x = x
         self.y = y
         self.radius = radius
         self.is_player = is_player
+        self.is_boss = is_boss
         self.blood = []
         for _ in range(random.randint(18, 28)):
             angle = random.uniform(0, 2 * math.pi)
@@ -67,11 +68,13 @@ class Corpse:
         pos = pygame.Vector2(self.x - offset.x, self.y - offset.y)
         color = config.GREEN if self.is_player else config.ORANGE
         skin_color = (220, 180, 140)
+        if self.is_boss:
+            color = config.BLACK
         
         dir_vec = pygame.Vector2(math.cos(self.rotation), math.sin(self.rotation))
         side_vec = pygame.Vector2(-dir_vec.y, dir_vec.x)
-        shoulder_width = 10
-        arm_thickness = 6
+        shoulder_width = 10 if not self.is_boss else 16
+        arm_thickness = 6 if not self.is_boss else 9
 
         # Legs
         for i in range(2):
@@ -92,11 +95,19 @@ class Corpse:
 
         # Torso (slightly larger, flattened)
         torso_center = pos + dir_vec * -2
-        pygame.draw.ellipse(screen, color, (torso_center.x - 11, torso_center.y - 7, 22, 14))
+        torso_w = 22 if not self.is_boss else 34
+        torso_h = 14 if not self.is_boss else 20
+        pygame.draw.ellipse(screen, color, (torso_center.x - torso_w / 2, torso_center.y - torso_h / 2, torso_w, torso_h))
 
         # Head (displaced slightly)
         h_pos = pos + dir_vec * 6
-        pygame.draw.circle(screen, skin_color, (int(h_pos.x), int(h_pos.y)), 7)
+        head_radius = 7 if not self.is_boss else 12
+        pygame.draw.circle(screen, skin_color, (int(h_pos.x), int(h_pos.y)), head_radius)
         # Hair
         hair_color = (100, 50, 20) if self.is_player else (180, 160, 40)
-        pygame.draw.circle(screen, hair_color, (int(h_pos.x), int(h_pos.y)), 5)
+        pygame.draw.circle(screen, hair_color, (int(h_pos.x), int(h_pos.y)), head_radius - 2)
+        if self.is_boss:
+            hat_brim = pygame.Rect(int(h_pos.x - head_radius), int(h_pos.y - head_radius - 6), head_radius * 2, 6)
+            hat_top = pygame.Rect(int(h_pos.x - head_radius * 0.7), int(h_pos.y - head_radius - 14), int(head_radius * 1.4), 10)
+            pygame.draw.rect(screen, config.BLACK, hat_brim)
+            pygame.draw.rect(screen, config.DARK_GRAY, hat_top)

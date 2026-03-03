@@ -290,8 +290,8 @@ def create_map(walls: list, doors: list, enemies: list, props: list) -> dict:
             enemy.bat_durability = config.BAT_DURABILITY
         enemies.append(enemy)
 
-    large_x, large_y = 450, 1550
-    large_w, large_h = 1500, 1000
+    large_x, large_y = 380, 1500
+    large_w, large_h = 1750, 1150
 
     def add_large_building_props(large_room_defs: list) -> None:
         for room in large_room_defs:
@@ -348,10 +348,10 @@ def create_map(walls: list, doors: list, enemies: list, props: list) -> dict:
         else:
             doors.append(Door(door_x, door_y, wall_thickness, door_height, hinge_left=True))
 
-    v1 = inner_x + inner_w * 0.33
-    v2 = inner_x + inner_w * 0.66
-    h1 = inner_y + inner_h * 0.35
-    h2 = inner_y + inner_h * 0.7
+    v1 = inner_x + inner_w * 0.25
+    v2 = inner_x + inner_w * 0.75
+    h1 = inner_y + inner_h * 0.25
+    h2 = inner_y + inner_h * 0.75
 
     arena_rect = (v1, h1, v2 - v1, h2 - h1)
 

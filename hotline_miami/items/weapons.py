@@ -24,6 +24,7 @@ class BatItem:
                 0.25,
                 offset,
                 scale=config.PIPE_GROUND_SCALE,
+                outline=True,
             )
         else:
             draw_bat_sprite(
@@ -32,6 +33,7 @@ class BatItem:
                 0.35,
                 offset,
                 scale=config.BAT_GROUND_SCALE,
+                outline=True,
             )
 
 
@@ -99,6 +101,7 @@ class PistolItem:
             0.15,
             offset,
             scale=1.0,
+            outline=True,
         )
 
 
