@@ -132,6 +132,17 @@ class Prop:
         elif self.kind == "bottle":
             pygame.draw.rect(screen, config.BOTTLE_GREEN, rect)
             pygame.draw.rect(screen, config.DARK_GREEN, rect, 1)
+        elif self.kind == "desk":
+            pygame.draw.rect(screen, config.TABLE_BROWN, rect)
+            pygame.draw.rect(screen, config.DARK_BROWN, rect, 3)
+            blotter = rect.inflate(-rect.width * 0.4, -rect.height * 0.5)
+            pygame.draw.rect(screen, config.DARK_GRAY, blotter)
+        elif self.kind == "tiger_rug":
+            pygame.draw.rect(screen, config.TIGER_ORANGE, rect)
+            pygame.draw.rect(screen, config.DARK_ORANGE, rect, 3)
+            for i in range(5):
+                stripe_x = rect.left + (i + 1) * rect.width / 6
+                pygame.draw.line(screen, config.DARK_ORANGE, (stripe_x, rect.top + 8), (stripe_x - 12, rect.bottom - 8), 3)
         else:
             pygame.draw.rect(screen, config.GRAY, rect)
             pygame.draw.rect(screen, config.DARK_GRAY, rect, 1)

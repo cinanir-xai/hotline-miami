@@ -36,6 +36,7 @@ class Game:
         self.doors = []
         self.props = []
         self.corpses = []
+        self.boss_enemy = None
         self.bat_items = []
         self.pistol_items = []
         self.bat_projectiles = []
@@ -58,6 +59,11 @@ class Game:
         self.main_building = buildings["main"]
         self.small_building = buildings["small"]
         self.large_building = buildings["large"]
+        self.boss_arena = buildings["arena"]
+        boss_spawn = buildings["boss_spawn"]
+        self.boss_enemy = Enemy(boss_spawn[0], boss_spawn[1], is_boss=True)
+        self.boss_enemy.has_smg = True
+        self.enemies.append(self.boss_enemy)
 
     def run(self) -> None:
         while self.running:
@@ -315,6 +321,8 @@ class Game:
             if enemy.can_shoot(self.player):
                 facing = math.atan2(self.player.y - enemy.y, self.player.x - enemy.x)
                 enemy.shoot()
+                if enemy.has_pistol:
+                    enemy.pistol_ammo -= 1
                 self.spawn_bullet(enemy.x, enemy.y, facing, source_is_player=False, owner_id=id(enemy))
 
             if enemy.can_punch(self.player):
@@ -521,6 +529,7 @@ class Game:
             self.main_building,
             self.small_building,
             self.large_building,
+            self.boss_arena,
         )
 
         for bat in self.bat_items:

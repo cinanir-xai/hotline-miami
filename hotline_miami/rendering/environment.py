@@ -47,6 +47,7 @@ def draw_building_floors(
     main_building: tuple,
     small_building: tuple,
     large_building: tuple,
+    boss_arena: tuple,
 ) -> None:
     cx, cy = camera_offset.x, camera_offset.y
 
@@ -92,3 +93,11 @@ def draw_building_floors(
 
     for x in range(int(floor_rect3.left), int(floor_rect3.right), tile_size):
         pygame.draw.line(screen, config.TILE_GRAY, (x, floor_rect3.top), (x, floor_rect3.bottom), 2)
+
+    ax, ay, aw, ah = boss_arena
+    arena_rect = pygame.Rect(ax - cx, ay - cy, aw, ah)
+    pygame.draw.rect(screen, config.TILE_WHITE, arena_rect)
+    for y in range(int(arena_rect.top), int(arena_rect.bottom), tile_size):
+        pygame.draw.line(screen, config.TILE_GRAY, (arena_rect.left, y), (arena_rect.right, y), 2)
+    for x in range(int(arena_rect.left), int(arena_rect.right), tile_size):
+        pygame.draw.line(screen, config.TILE_GRAY, (x, arena_rect.top), (x, arena_rect.bottom), 2)

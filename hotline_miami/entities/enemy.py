@@ -12,8 +12,12 @@ from hotline_miami.rendering.weapons import draw_bat_sprite, draw_pipe_sprite, d
 
 
 class Enemy(Entity):
-    def __init__(self, x: float, y: float):
-        super().__init__(x, y, config.ENEMY_RADIUS, config.ENEMY_SPEED, config.ENEMY_HP)
+    def __init__(self, x: float, y: float, is_boss: bool = False):
+        radius = config.BOSS_RADIUS if is_boss else config.ENEMY_RADIUS
+        speed = config.BOSS_SPEED if is_boss else config.ENEMY_SPEED
+        hp = config.BOSS_HP if is_boss else config.ENEMY_HP
+        super().__init__(x, y, radius, speed, hp)
+        self.is_boss = is_boss
         self.punch_cooldown = 0.0
         self.in_range_timer = 0.0
         self.wander_timer = 0.0
@@ -23,6 +27,7 @@ class Enemy(Entity):
         self.has_bat = False
         self.has_pipe = False
         self.has_pistol = False
+        self.has_smg = False
         self.bat_durability = config.BAT_DURABILITY
         self.pipe_durability = config.PIPE_DURABILITY
         self.pistol_ammo = config.PISTOL_AMMO
@@ -42,7 +47,7 @@ class Enemy(Entity):
         dist = math.sqrt(dx * dx + dy * dy)
 
         self.can_see_player = False
-        los_range = config.PISTOL_LOS_RANGE if self.has_pistol else config.ENEMY_LOS_RANGE
+        los_range = config.PISTOL_LOS_RANGE if (self.has_pistol or self.has_smg) else config.ENEMY_LOS_RANGE
         if dist < los_range and player.alive:
             start = pygame.Vector2(self.x, self.y)
             end = pygame.Vector2(player.x, player.y)
@@ -59,7 +64,7 @@ class Enemy(Entity):
             self.can_see_player = not blocked
 
         attack_range = config.BAT_RANGE if (self.has_bat or self.has_pipe) else config.ENEMY_PUNCH_RANGE
-        if self.has_pistol:
+        if self.has_pistol or self.has_smg:
             attack_range = max(attack_range, config.PISTOL_LOS_RANGE * 0.7)
         stop_range = attack_range * 0.9
 
@@ -88,7 +93,7 @@ class Enemy(Entity):
     def can_punch(self, player) -> bool:
         if not self.alive or not player.alive or self.punch_cooldown > 0:
             return False
-        if self.has_pistol:
+        if self.has_pistol or self.has_smg:
             return False
         if not self.can_see_player:
             return False
@@ -102,6 +107,10 @@ class Enemy(Entity):
     def can_shoot(self, player) -> bool:
         if not self.alive or not player.alive or self.punch_cooldown > 0:
             return False
+        if self.has_smg:
+            if not self.can_see_player:
+                return False
+            return True
         if not self.has_pistol or self.pistol_ammo <= 0:
             return False
         if not self.can_see_player:
@@ -124,7 +133,7 @@ class Enemy(Entity):
         )
 
     def shoot(self) -> None:
-        self.punch_cooldown = config.PISTOL_ENEMY_COOLDOWN
+        self.punch_cooldown = config.BOSS_SMG_COOLDOWN if self.has_smg else config.PISTOL_ENEMY_COOLDOWN
         self.attack_timer = 0.15
 
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2) -> None:
@@ -148,32 +157,39 @@ class Enemy(Entity):
         right_arm_ext = 0
         if self.attack_timer > 0:
             progress = 1.0 - (self.attack_timer / 0.2)
-            extension = math.sin(progress * math.pi) * 12
+            extension = math.sin(progress * math.pi) * (16 if self.is_boss else 12)
             if self.attack_side == -1:
                 right_arm_ext = extension
             else:
                 left_arm_ext = extension
 
         # Draw Arms/Shoulders
-        shoulder_width = 11
-        arm_thickness = 6
+        shoulder_width = 11 if not self.is_boss else 16
+        arm_thickness = 6 if not self.is_boss else 9
+        arm_color = config.ORANGE if not self.is_boss else config.DARK_GRAY
+        suit_color = config.ORANGE if not self.is_boss else config.BLACK
         
         # Left Arm
         l_shoulder = pos + side_vec * -shoulder_width + dir_vec * (2 + left_arm_ext)
-        pygame.draw.circle(screen, config.ORANGE, (int(l_shoulder.x), int(l_shoulder.y)), arm_thickness)
+        pygame.draw.circle(screen, arm_color, (int(l_shoulder.x), int(l_shoulder.y)), arm_thickness)
         
         # Right Arm
         r_shoulder = pos + side_vec * shoulder_width + dir_vec * (2 + right_arm_ext)
-        pygame.draw.circle(screen, config.ORANGE, (int(r_shoulder.x), int(r_shoulder.y)), arm_thickness)
+        pygame.draw.circle(screen, arm_color, (int(r_shoulder.x), int(r_shoulder.y)), arm_thickness)
 
         # Body/Torso
-        pygame.draw.line(screen, config.ORANGE, (int(l_shoulder.x), int(l_shoulder.y)), (int(r_shoulder.x), int(r_shoulder.y)), 9)
+        pygame.draw.line(screen, suit_color, (int(l_shoulder.x), int(l_shoulder.y)), (int(r_shoulder.x), int(r_shoulder.y)), 11 if self.is_boss else 9)
 
         # Head
-        head_radius = 7
+        head_radius = 7 if not self.is_boss else 12
         pygame.draw.circle(screen, (220, 180, 140), (int(pos.x), int(pos.y)), head_radius) # Skin
         # Hair (Blonde/Yellowish for enemies to distinguish)
         pygame.draw.circle(screen, (180, 160, 40), (int(pos.x), int(pos.y)), head_radius - 2)
+        if self.is_boss:
+            hat_brim = pygame.Rect(int(pos.x - head_radius), int(pos.y - head_radius - 6), head_radius * 2, 6)
+            hat_top = pygame.Rect(int(pos.x - head_radius * 0.7), int(pos.y - head_radius - 14), int(head_radius * 1.4), 10)
+            pygame.draw.rect(screen, config.BLACK, hat_brim)
+            pygame.draw.rect(screen, config.DARK_GRAY, hat_top)
 
         # Weapon rendering
         hand_offset = self.radius + 6
@@ -210,25 +226,37 @@ class Enemy(Entity):
             else:
                 draw_bat_sprite(screen, hand_pos, angle, offset, scale=0.7)
 
-        if self.has_pistol:
+        if self.has_pistol or self.has_smg:
             pistol_angle = angle
             pistol_pos = right_hand + dir_vec * (hand_offset + 2)
-            draw_pistol_sprite(screen, pistol_pos, pistol_angle, offset, scale=0.9, firing=self.attack_timer > 0)
+            scale = 1.2 if self.has_smg else 0.9
+            draw_pistol_sprite(screen, pistol_pos, pistol_angle, offset, scale=scale, firing=self.attack_timer > 0)
+            if self.has_smg:
+                barrel = pistol_pos + pygame.Vector2(math.cos(pistol_angle), math.sin(pistol_angle)) * 12
+                pygame.draw.circle(screen, config.DARK_METAL, (int(barrel.x - offset.x), int(barrel.y - offset.y)), 4)
 
         # Health bar
-        hp_pct = self.hp / config.ENEMY_HP
+        max_hp = config.BOSS_HP if self.is_boss else config.ENEMY_HP
+        hp_pct = max(0.0, self.hp / max_hp)
+        bar_width = 40 if self.is_boss else 20
+        bar_height = 6 if self.is_boss else 4
         pygame.draw.rect(
             screen,
             config.BLACK,
-            (int(self.x - 10 - offset.x), int(self.y - self.radius - 12 - offset.y), 20, 4),
+            (
+                int(self.x - bar_width / 2 - offset.x),
+                int(self.y - self.radius - 16 - offset.y),
+                bar_width,
+                bar_height,
+            ),
         )
         pygame.draw.rect(
             screen,
             config.GREEN if hp_pct > 0.5 else config.YELLOW if hp_pct > 0.25 else config.RED,
             (
-                int(self.x - 10 - offset.x),
-                int(self.y - self.radius - 12 - offset.y),
-                int(20 * hp_pct),
-                4,
+                int(self.x - bar_width / 2 - offset.x),
+                int(self.y - self.radius - 16 - offset.y),
+                int(bar_width * hp_pct),
+                bar_height,
             ),
         )

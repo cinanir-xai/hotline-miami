@@ -353,26 +353,58 @@ def create_map(walls: list, doors: list, enemies: list, props: list) -> dict:
     h1 = inner_y + inner_h * 0.35
     h2 = inner_y + inner_h * 0.7
 
+    arena_rect = (v1, h1, v2 - v1, h2 - h1)
+
     for segment_start, segment_end in [(inner_x, v1), (v1, v2), (v2, inner_x + inner_w)]:
-        add_wall_with_door(segment_start, h1, segment_end - segment_start, wall_thickness, True, force_door=True)
-        add_wall_with_door(segment_start, h2, segment_end - segment_start, wall_thickness, True, force_door=True)
+        add_wall_with_door(segment_start, h1, segment_end - segment_start, wall_thickness, True, force_door=(segment_start != v1))
+        add_wall_with_door(segment_start, h2, segment_end - segment_start, wall_thickness, True, force_door=(segment_start != v1))
 
     for segment_start, segment_end in [(inner_y, h1), (h1, h2), (h2, inner_y + inner_h)]:
-        add_wall_with_door(v1, segment_start, segment_end - segment_start, wall_thickness, False, force_door=True)
-        add_wall_with_door(v2, segment_start, segment_end - segment_start, wall_thickness, False, force_door=True)
+        add_wall_with_door(v1, segment_start, segment_end - segment_start, wall_thickness, False, force_door=(segment_start != h1))
+        add_wall_with_door(v2, segment_start, segment_end - segment_start, wall_thickness, False, force_door=(segment_start != h1))
+
+    arena_doors = [
+        (v1 + arena_rect[2] / 2 - door_width / 2, h1, True),
+        (v1 + arena_rect[2] / 2 - door_width / 2, h2 - wall_thickness, True),
+        (v1, h1 + arena_rect[3] / 2 - door_height / 2, False),
+        (v2 - wall_thickness, h1 + arena_rect[3] / 2 - door_height / 2, False),
+    ]
+    for door_x, door_y, horizontal in arena_doors:
+        if horizontal:
+            doors.append(Door(door_x, door_y, door_width, wall_thickness, hinge_left=True))
+        else:
+            doors.append(Door(door_x, door_y, wall_thickness, door_height, hinge_left=True))
+
+    arena_bounds = (
+        v1 + wall_thickness,
+        h1 + wall_thickness,
+        arena_rect[2] - wall_thickness * 2,
+        arena_rect[3] - wall_thickness * 2,
+    )
 
     large_rooms = [
         (large_x, large_y, v1 - large_x, h1 - large_y),
         (v1, large_y, v2 - v1, h1 - large_y),
         (v2, large_y, large_x + large_w - v2, h1 - large_y),
         (large_x, h1, v1 - large_x, h2 - h1),
-        (v1, h1, v2 - v1, h2 - h1),
         (v2, h1, large_x + large_w - v2, h2 - h1),
         (large_x, h2, v1 - large_x, large_y + large_h - h2),
         (v1, h2, v2 - v1, large_y + large_h - h2),
         (v2, h2, large_x + large_w - v2, large_y + large_h - h2),
     ]
     add_large_building_props(large_rooms)
+
+    desk_width = 180
+    desk_height = 70
+    desk_x = v1 + (arena_rect[2] - desk_width) / 2
+    desk_y = h1 + arena_rect[3] * 0.7
+    props.append(Prop(desk_x, desk_y, desk_width, desk_height, "desk"))
+
+    rug_width = arena_bounds[2] * 0.7
+    rug_height = arena_bounds[3] * 0.5
+    rug_x = arena_bounds[0] + (arena_bounds[2] - rug_width) / 2
+    rug_y = arena_bounds[1] + (arena_bounds[3] - rug_height) / 2
+    props.append(Prop(rug_x, rug_y, rug_width, rug_height, "tiger_rug", collidable=False))
 
     for pos in [
         (large_x + 240, large_y + 280),
@@ -397,4 +429,13 @@ def create_map(walls: list, doors: list, enemies: list, props: list) -> dict:
             enemy.bat_durability = config.BAT_DURABILITY
         enemies.append(enemy)
 
-    return {"main": main_building, "small": small_building, "large": large_building}
+    boss_spawn = (v1 + arena_rect[2] / 2, h1 + arena_rect[3] / 2)
+
+    return {
+        "main": main_building,
+        "small": small_building,
+        "large": large_building,
+        "arena": arena_rect,
+        "boss_spawn": boss_spawn,
+        "arena_doors": arena_doors,
+    }
