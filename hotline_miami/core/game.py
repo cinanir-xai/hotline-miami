@@ -544,14 +544,8 @@ class Game:
             self.boss_arena,
         )
 
-        for bat in self.bat_items:
-            bat.draw(self.screen, self.camera_offset)
-        for pistol in self.pistol_items:
-            pistol.draw(self.screen, self.camera_offset)
         for projectile in self.bat_projectiles:
             projectile.draw(self.screen, self.camera_offset)
-        for bullet in self.bullet_projectiles:
-            bullet.draw(self.screen, self.camera_offset)
         for piece in self.bat_breaks:
             piece.draw(self.screen, self.camera_offset)
 
@@ -578,6 +572,14 @@ class Game:
             self.player_has_pistol,
             self.player_pistol_firing,
         )
+
+        for bat in self.bat_items:
+            bat.draw(self.screen, self.camera_offset)
+        for pistol in self.pistol_items:
+            pistol.draw(self.screen, self.camera_offset)
+
+        for bullet in self.bullet_projectiles:
+            bullet.draw(self.screen, self.camera_offset)
 
         font = pygame.font.SysFont(None, 24)
         hp_text = font.render(f"HP: {self.player.hp}/{config.PLAYER_HP}", True, config.WHITE)

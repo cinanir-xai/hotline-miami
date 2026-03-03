@@ -149,17 +149,17 @@ class BulletProjectile:
         if self.velocity.length() == 0:
             tail = tip
         else:
-            tail = tip - self.velocity.normalize() * 10
+            tail = tip - self.velocity.normalize() * 15
         pygame.draw.line(
             screen,
             config.YELLOW,
             (int(tail.x - offset.x), int(tail.y - offset.y)),
             (int(tip.x - offset.x), int(tip.y - offset.y)),
-            2,
+            3,
         )
         pygame.draw.circle(
             screen,
             (255, 230, 150),
             (int(tip.x - offset.x), int(tip.y - offset.y)),
-            3,
+            5,
         )

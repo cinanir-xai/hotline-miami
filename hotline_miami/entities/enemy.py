@@ -76,7 +76,8 @@ class Enemy(Entity):
         stop_range = attack_range * 0.9
 
         if dist < config.ENEMY_DETECTION_RANGE and player.alive and self.can_see_player:
-            if dist > stop_range and dist > 0:
+            chase_threshold = stop_range * (0.6 if (self.has_bat or self.has_pipe) else 1.0)
+            if dist > chase_threshold and dist > 0:
                 self.vx = dx / dist
                 self.vy = dy / dist
             else:

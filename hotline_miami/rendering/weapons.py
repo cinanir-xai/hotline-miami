@@ -15,6 +15,7 @@ def draw_bat_sprite(
     offset: pygame.Vector2,
     scale: float = 1.0,
     outline: bool = False,
+    outline_width: int = 3,
 ) -> None:
     """Draw a cleaner bat sprite using a shaft + barrel + grip."""
     length = 28 * scale
@@ -39,7 +40,7 @@ def draw_bat_sprite(
             screen,
             config.YELLOW,
             [(p.x - offset.x, p.y - offset.y) for p in shaft_points],
-            2,
+            outline_width,
         )
     pygame.draw.polygon(
         screen,
@@ -54,8 +55,8 @@ def draw_bat_sprite(
             screen,
             config.YELLOW,
             (int(barrel_center.x - offset.x), int(barrel_center.y - offset.y)),
-            int(barrel_radius + 2),
-            2,
+            int(barrel_radius + outline_width),
+            outline_width,
         )
     pygame.draw.circle(
         screen,
@@ -80,6 +81,7 @@ def draw_pipe_sprite(
     offset: pygame.Vector2,
     scale: float = 1.0,
     outline: bool = False,
+    outline_width: int = 3,
 ) -> None:
     """Draw a metallic pipe with a bright highlight."""
     length = 30 * scale
@@ -101,7 +103,7 @@ def draw_pipe_sprite(
             screen,
             config.YELLOW,
             [(p.x - offset.x, p.y - offset.y) for p in pipe_points],
-            2,
+            outline_width,
         )
     pygame.draw.polygon(
         screen,
@@ -136,6 +138,7 @@ def draw_pistol_sprite(
     scale: float = 1.0,
     firing: bool = False,
     outline: bool = False,
+    outline_width: int = 3,
 ) -> None:
     """Draw a compact pistol sprite with slide and grip."""
     length = 18 * scale
@@ -159,7 +162,7 @@ def draw_pistol_sprite(
             screen,
             config.YELLOW,
             [(p.x - offset.x, p.y - offset.y) for p in slide_points],
-            2,
+            outline_width,
         )
     pygame.draw.polygon(
         screen,
