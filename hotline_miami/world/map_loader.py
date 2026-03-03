@@ -6,11 +6,11 @@ import random
 
 from hotline_miami import config
 from hotline_miami.entities.enemy import Enemy
-from hotline_miami.world.walls import Wall
+from hotline_miami.world.walls import Wall, Prop
 from hotline_miami.world.doors import Door
 
 
-def create_map(walls: list, doors: list, enemies: list) -> dict:
+def create_map(walls: list, doors: list, enemies: list, props: list) -> dict:
     """Populate walls, doors, and enemies. Returns building bounds."""
     main_x, main_y = 1000, 200
     main_w, main_h = 1200, 1000
@@ -175,6 +175,63 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
     walls.append(Wall(small_x + 350, small_y + 250, 210, wall_thickness))
     doors.append(Door(small_x + 270, small_y + 250, door_width, wall_thickness, hinge_left=True))
 
+    def add_room_props(room: tuple, rng: random.Random, allow_rug: bool = True) -> None:
+        rx, ry, rw, rh = room
+        margin = wall_thickness + 35
+        inner_w = max(120, rw - margin * 2)
+        inner_h = max(120, rh - margin * 2)
+        x_min = rx + margin
+        y_min = ry + margin
+
+        corners = [
+            (x_min + 10, y_min + 10),
+            (x_min + inner_w - 50, y_min + 10),
+            (x_min + 10, y_min + inner_h - 50),
+            (x_min + inner_w - 50, y_min + inner_h - 50),
+        ]
+        rng.shuffle(corners)
+        for corner in corners[: rng.randint(1, 2)]:
+            props.append(Prop(corner[0], corner[1], 38, 38, "plant"))
+
+        if rng.random() < 0.6:
+            props.append(Prop(x_min + inner_w * 0.35, y_min + inner_h * 0.4, 120, 48, "sofa"))
+        if rng.random() < 0.7:
+            props.append(Prop(x_min + inner_w * 0.15, y_min + inner_h * 0.25, 70, 60, "table"))
+        if rng.random() < 0.8:
+            props.append(Prop(x_min + inner_w * 0.25, y_min + inner_h * 0.6, 36, 36, "chair"))
+        if rng.random() < 0.8:
+            props.append(Prop(x_min + inner_w * 0.6, y_min + inner_h * 0.6, 36, 36, "chair"))
+        if rng.random() < 0.5:
+            props.append(Prop(x_min + inner_w * 0.75, y_min + inner_h * 0.2, 32, 40, "trash"))
+        if allow_rug and rng.random() < 0.55:
+            props.append(Prop(x_min + inner_w * 0.3, y_min + inner_h * 0.55, 120, 70, "rug", collidable=False))
+        for _ in range(rng.randint(1, 3)):
+            bx = x_min + rng.random() * (inner_w - 16)
+            by = y_min + rng.random() * (inner_h - 16)
+            props.append(Prop(bx, by, 10, 18, "bottle", collidable=False))
+
+    rng = random.Random(42)
+
+    main_rooms = [
+        (main_x, main_y, 320, 440),
+        (main_x + 320, main_y, 400, 440),
+        (main_x + 720, main_y, main_w - 720, 440),
+        (main_x, main_y + 440, 320, 560),
+        (main_x + 320, main_y + 440, 400, 560),
+        (main_x + 720, main_y + 440, main_w - 720, 560),
+    ]
+    for room in main_rooms:
+        add_room_props(room, rng, allow_rug=True)
+
+    small_rooms = [
+        (small_x, small_y, 320, 250),
+        (small_x + 320, small_y, small_w - 320, 250),
+        (small_x, small_y + 250, 320, small_h - 250),
+        (small_x + 320, small_y + 250, small_w - 320, small_h - 250),
+    ]
+    for room in small_rooms:
+        add_room_props(room, rng, allow_rug=True)
+
     for pos in [
         (main_x + 120, main_y + 120),
         (main_x + 420, main_y + 140),
@@ -235,6 +292,10 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
 
     large_x, large_y = 450, 1550
     large_w, large_h = 1500, 1000
+
+    def add_large_building_props(large_room_defs: list) -> None:
+        for room in large_room_defs:
+            add_room_props(room, rng, allow_rug=True)
 
     def add_wall_with_door(
         x: float,
@@ -299,6 +360,19 @@ def create_map(walls: list, doors: list, enemies: list) -> dict:
     for segment_start, segment_end in [(inner_y, h1), (h1, h2), (h2, inner_y + inner_h)]:
         add_wall_with_door(v1, segment_start, segment_end - segment_start, wall_thickness, False, force_door=True)
         add_wall_with_door(v2, segment_start, segment_end - segment_start, wall_thickness, False, force_door=True)
+
+    large_rooms = [
+        (large_x, large_y, v1 - large_x, h1 - large_y),
+        (v1, large_y, v2 - v1, h1 - large_y),
+        (v2, large_y, large_x + large_w - v2, h1 - large_y),
+        (large_x, h1, v1 - large_x, h2 - h1),
+        (v1, h1, v2 - v1, h2 - h1),
+        (v2, h1, large_x + large_w - v2, h2 - h1),
+        (large_x, h2, v1 - large_x, large_y + large_h - h2),
+        (v1, h2, v2 - v1, large_y + large_h - h2),
+        (v2, h2, large_x + large_w - v2, large_y + large_h - h2),
+    ]
+    add_large_building_props(large_rooms)
 
     for pos in [
         (large_x + 240, large_y + 280),

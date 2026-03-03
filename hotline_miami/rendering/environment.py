@@ -53,14 +53,14 @@ def draw_building_floors(
     mx, my, mw, mh = main_building
     wall_thickness = 28
     floor_rect = pygame.Rect(mx + wall_thickness - cx, my + wall_thickness - cy, mw - wall_thickness * 2, mh - wall_thickness * 2)
-    pygame.draw.rect(screen, config.DARK_GRAY, floor_rect)
+    pygame.draw.rect(screen, config.WOOD_DARK, floor_rect)
 
     plank_spacing = 18
     for y in range(int(floor_rect.top), int(floor_rect.bottom), plank_spacing):
-        pygame.draw.line(screen, config.GRAY, (floor_rect.left, y), (floor_rect.right, y), 1)
+        pygame.draw.line(screen, config.WOOD_LIGHT, (floor_rect.left, y), (floor_rect.right, y), 1)
 
     for x in range(int(floor_rect.left), int(floor_rect.right), 90):
-        pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect.top), (x, floor_rect.bottom), 2)
+        pygame.draw.line(screen, config.WOOD_LIGHT, (x, floor_rect.top), (x, floor_rect.bottom), 2)
 
     sx, sy, sw, sh = small_building
     floor_rect2 = pygame.Rect(
@@ -69,13 +69,13 @@ def draw_building_floors(
         sw - wall_thickness * 2,
         sh - wall_thickness * 2,
     )
-    pygame.draw.rect(screen, config.DARK_GRAY, floor_rect2)
+    pygame.draw.rect(screen, config.CARPET_BLUE, floor_rect2)
 
-    for y in range(int(floor_rect2.top), int(floor_rect2.bottom), plank_spacing):
-        pygame.draw.line(screen, config.GRAY, (floor_rect2.left, y), (floor_rect2.right, y), 1)
+    for y in range(int(floor_rect2.top), int(floor_rect2.bottom), 30):
+        pygame.draw.line(screen, config.CARPET_DARK, (floor_rect2.left, y), (floor_rect2.right, y), 1)
 
-    for x in range(int(floor_rect2.left), int(floor_rect2.right), 90):
-        pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect2.top), (x, floor_rect2.bottom), 2)
+    for x in range(int(floor_rect2.left), int(floor_rect2.right), 120):
+        pygame.draw.line(screen, config.CARPET_DARK, (x, floor_rect2.top), (x, floor_rect2.bottom), 1)
 
     lx, ly, lw, lh = large_building
     floor_rect3 = pygame.Rect(
@@ -84,10 +84,11 @@ def draw_building_floors(
         lw - wall_thickness * 2,
         lh - wall_thickness * 2,
     )
-    pygame.draw.rect(screen, config.DARK_GRAY, floor_rect3)
+    pygame.draw.rect(screen, config.TILE_WHITE, floor_rect3)
 
-    for y in range(int(floor_rect3.top), int(floor_rect3.bottom), plank_spacing):
-        pygame.draw.line(screen, config.GRAY, (floor_rect3.left, y), (floor_rect3.right, y), 1)
+    tile_size = 46
+    for y in range(int(floor_rect3.top), int(floor_rect3.bottom), tile_size):
+        pygame.draw.line(screen, config.TILE_GRAY, (floor_rect3.left, y), (floor_rect3.right, y), 2)
 
-    for x in range(int(floor_rect3.left), int(floor_rect3.right), 90):
-        pygame.draw.line(screen, config.LIGHT_GRAY, (x, floor_rect3.top), (x, floor_rect3.bottom), 2)
+    for x in range(int(floor_rect3.left), int(floor_rect3.right), tile_size):
+        pygame.draw.line(screen, config.TILE_GRAY, (x, floor_rect3.top), (x, floor_rect3.bottom), 2)

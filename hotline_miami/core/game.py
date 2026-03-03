@@ -34,6 +34,7 @@ class Game:
         self.enemies = []
         self.walls = []
         self.doors = []
+        self.props = []
         self.corpses = []
         self.bat_items = []
         self.pistol_items = []
@@ -53,7 +54,7 @@ class Game:
         self.camera_offset = pygame.Vector2(0, 0)
         self.impact_flashes = []
         random.seed()
-        buildings = create_map(self.walls, self.doors, self.enemies)
+        buildings = create_map(self.walls, self.doors, self.enemies, self.props)
         self.main_building = buildings["main"]
         self.small_building = buildings["small"]
         self.large_building = buildings["large"]
@@ -179,7 +180,7 @@ class Game:
         world_mouse = (mouse_pos[0] + self.camera_offset.x, mouse_pos[1] + self.camera_offset.y)
 
         self.player.update(dt, keys, world_mouse)
-        self.player.move(dt, self.walls, self.doors)
+        self.player.move(dt, self.walls, self.doors, self.props)
         if self.player_pistol_cooldown > 0:
             self.player_pistol_cooldown -= dt
         self.player_pistol_firing = False
@@ -293,7 +294,7 @@ class Game:
 
         for enemy in self.enemies:
             enemy.update(dt, self.player, self.walls, self.doors)
-            enemy.move(dt, self.walls, self.doors)
+            enemy.move(dt, self.walls, self.doors, self.props)
 
             for other in self.enemies:
                 if other is enemy or not other.alive or not enemy.alive:
@@ -538,6 +539,9 @@ class Game:
 
         for wall in self.walls:
             wall.draw(self.screen, self.camera_offset)
+
+        for prop in self.props:
+            prop.draw(self.screen, self.camera_offset)
 
         for corpse in self.corpses:
             corpse.draw(self.screen, self.camera_offset)

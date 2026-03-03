@@ -25,7 +25,7 @@ class Entity:
         self.attack_radius = 0
         self.attack_angle = 0.0
 
-    def move(self, dt: float, walls: List, doors: List) -> None:
+    def move(self, dt: float, walls: List, doors: List, props: List) -> None:
         if not self.alive:
             return
 
@@ -45,6 +45,12 @@ class Entity:
             if not door.is_open and door.collides_with_circle(new_x, self.y, self.radius):
                 collides_x = True
             if not door.is_open and door.collides_with_circle(self.x, new_y, self.radius):
+                collides_y = True
+
+        for prop in props:
+            if prop.contains_point(new_x, self.y, self.radius):
+                collides_x = True
+            if prop.contains_point(self.x, new_y, self.radius):
                 collides_y = True
 
         if not collides_x:
