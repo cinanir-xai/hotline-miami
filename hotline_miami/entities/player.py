@@ -67,35 +67,61 @@ class Player(Entity):
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2, has_bat: bool, has_pipe: bool) -> None:
         if not self.alive:
             return
-        pygame.draw.circle(screen, config.GREEN, (int(self.x - offset.x), int(self.y - offset.y)), self.radius)
-        end_x = self.x + math.cos(self.facing_angle) * (self.radius + 5)
-        end_y = self.y + math.sin(self.facing_angle) * (self.radius + 5)
-        pygame.draw.line(
-            screen,
-            config.DARK_GRAY,
-            (self.x - offset.x, self.y - offset.y),
-            (end_x - offset.x, end_y - offset.y),
-            3,
-        )
+        
+        pos = pygame.Vector2(self.x - offset.x, self.y - offset.y)
+        angle = self.facing_angle
+        dir_vec = pygame.Vector2(math.cos(angle), math.sin(angle))
+        side_vec = pygame.Vector2(-dir_vec.y, dir_vec.x)
+        
+        # Calculate arm positions based on attack animation
+        left_arm_ext = 0
+        right_arm_ext = 0
+        if self.attack_timer > 0:
+            progress = 1.0 - (self.attack_timer / 0.2)
+            # Punch extension: out and back
+            extension = math.sin(progress * math.pi) * 15
+            if self.attack_side == -1: # Last side was 1, then flipped to -1 in punch()
+                right_arm_ext = extension
+            else:
+                left_arm_ext = extension
 
+        # Draw Arms/Shoulders
+        shoulder_width = 12
+        arm_thickness = 7
+        
+        # Left Arm
+        l_shoulder = pos + side_vec * -shoulder_width + dir_vec * (2 + left_arm_ext)
+        pygame.draw.circle(screen, config.GREEN, (int(l_shoulder.x), int(l_shoulder.y)), arm_thickness)
+        
+        # Right Arm
+        r_shoulder = pos + side_vec * shoulder_width + dir_vec * (2 + right_arm_ext)
+        pygame.draw.circle(screen, config.GREEN, (int(r_shoulder.x), int(r_shoulder.y)), arm_thickness)
+
+        # Body/Torso (Shoulder connection)
+        pygame.draw.line(screen, config.GREEN, (int(l_shoulder.x), int(l_shoulder.y)), (int(r_shoulder.x), int(r_shoulder.y)), 10)
+
+        # Head (Top down: Hair and skin)
+        head_radius = 8
+        pygame.draw.circle(screen, (240, 200, 160), (int(pos.x), int(pos.y)), head_radius) # Skin
+        # Hair (Brownish messy top)
+        pygame.draw.circle(screen, (100, 50, 20), (int(pos.x), int(pos.y)), head_radius - 2)
+        # Small detail for face direction (nose/eyes hint)
+        face_tip = pos + dir_vec * head_radius
+        pygame.draw.circle(screen, (240, 200, 160), (int(face_tip.x), int(face_tip.y)), 3)
+
+        # Weapon rendering
         if self.attack_timer > 0:
             progress = 1.0 - (self.attack_timer / 0.2)
             anim_pos = pygame.Vector2(self.x, self.y) + self.attack_offset * progress
-            if not (has_bat or has_pipe):
-                pygame.draw.circle(
-                    screen,
-                    config.GREEN,
-                    (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)),
-                    self.attack_radius,
-                )
-            else:
+            if has_bat or has_pipe:
                 swing_arc = config.PIPE_SWING_ARC if has_pipe else config.BAT_SWING_ARC
                 swing_angle = self.attack_angle + (progress - 0.5) * swing_arc
                 if has_pipe:
                     draw_pipe_sprite(screen, anim_pos, swing_angle, offset, scale=1.1)
                 else:
                     draw_bat_sprite(screen, anim_pos, swing_angle, offset, scale=1.1)
-        if has_bat or has_pipe:
+        
+        if (has_bat or has_pipe) and self.attack_timer <= 0:
             hand_pos = pygame.Vector2(self.x, self.y) + (
                 pygame.Vector2(math.cos(self.facing_angle), math.sin(self.facing_angle)) * (self.radius + 6)
             )

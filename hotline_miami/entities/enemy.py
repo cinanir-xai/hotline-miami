@@ -102,44 +102,85 @@ class Enemy(Entity):
     def draw(self, screen: pygame.Surface, offset: pygame.Vector2) -> None:
         if not self.alive:
             return
-        pygame.draw.circle(screen, config.ORANGE, (int(self.x - offset.x), int(self.y - offset.y)), self.radius)
+        
+        pos = pygame.Vector2(self.x - offset.x, self.y - offset.y)
+        # Enemies face their movement direction or attack angle
+        if self.attack_timer > 0:
+            angle = self.attack_angle
+        elif self.vx != 0 or self.vy != 0:
+            angle = math.atan2(self.vy, self.vx)
+        else:
+            angle = 0 # Default
+            
+        dir_vec = pygame.Vector2(math.cos(angle), math.sin(angle))
+        side_vec = pygame.Vector2(-dir_vec.y, dir_vec.x)
+        
+        # Calculate arm positions based on attack animation
+        left_arm_ext = 0
+        right_arm_ext = 0
+        if self.attack_timer > 0:
+            progress = 1.0 - (self.attack_timer / 0.2)
+            extension = math.sin(progress * math.pi) * 12
+            if self.attack_side == -1:
+                right_arm_ext = extension
+            else:
+                left_arm_ext = extension
+
+        # Draw Arms/Shoulders
+        shoulder_width = 11
+        arm_thickness = 6
+        
+        # Left Arm
+        l_shoulder = pos + side_vec * -shoulder_width + dir_vec * (2 + left_arm_ext)
+        pygame.draw.circle(screen, config.ORANGE, (int(l_shoulder.x), int(l_shoulder.y)), arm_thickness)
+        
+        # Right Arm
+        r_shoulder = pos + side_vec * shoulder_width + dir_vec * (2 + right_arm_ext)
+        pygame.draw.circle(screen, config.ORANGE, (int(r_shoulder.x), int(r_shoulder.y)), arm_thickness)
+
+        # Body/Torso
+        pygame.draw.line(screen, config.ORANGE, (int(l_shoulder.x), int(l_shoulder.y)), (int(r_shoulder.x), int(r_shoulder.y)), 9)
+
+        # Head
+        head_radius = 7
+        pygame.draw.circle(screen, (220, 180, 140), (int(pos.x), int(pos.y)), head_radius) # Skin
+        # Hair (Blonde/Yellowish for enemies to distinguish)
+        pygame.draw.circle(screen, (180, 160, 40), (int(pos.x), int(pos.y)), head_radius - 2)
+
+        # Weapon rendering
         if self.attack_timer > 0:
             progress = 1.0 - (self.attack_timer / 0.2)
             anim_pos = pygame.Vector2(self.x, self.y) + self.attack_offset * progress
-            if not (self.has_bat or self.has_pipe):
-                pygame.draw.circle(
-                    screen,
-                    config.ORANGE,
-                    (int(anim_pos.x - offset.x), int(anim_pos.y - offset.y)),
-                    self.attack_radius,
-                )
-            else:
+            if self.has_bat or self.has_pipe:
                 swing_arc = config.PIPE_SWING_ARC if self.has_pipe else config.BAT_SWING_ARC
                 swing_angle = self.attack_angle + (progress - 0.5) * swing_arc
                 if self.has_pipe:
                     draw_pipe_sprite(screen, anim_pos, swing_angle, offset, scale=1.0)
                 else:
                     draw_bat_sprite(screen, anim_pos, swing_angle, offset, scale=1.0)
-        if self.has_bat or self.has_pipe:
+        
+        if (self.has_bat or self.has_pipe) and self.attack_timer <= 0:
             hand_pos = pygame.Vector2(self.x, self.y) + (
-                pygame.Vector2(math.cos(self.attack_angle), math.sin(self.attack_angle)) * (self.radius + 6)
+                pygame.Vector2(math.cos(angle), math.sin(angle)) * (self.radius + 6)
             )
             if self.has_pipe:
-                draw_pipe_sprite(screen, hand_pos, self.attack_angle, offset, scale=0.7)
+                draw_pipe_sprite(screen, hand_pos, angle, offset, scale=0.7)
             else:
-                draw_bat_sprite(screen, hand_pos, self.attack_angle, offset, scale=0.7)
+                draw_bat_sprite(screen, hand_pos, angle, offset, scale=0.7)
+
+        # Health bar
         hp_pct = self.hp / config.ENEMY_HP
         pygame.draw.rect(
             screen,
             config.BLACK,
-            (int(self.x - 10 - offset.x), int(self.y - self.radius - 8 - offset.y), 20, 4),
+            (int(self.x - 10 - offset.x), int(self.y - self.radius - 12 - offset.y), 20, 4),
         )
         pygame.draw.rect(
             screen,
             config.GREEN if hp_pct > 0.5 else config.YELLOW if hp_pct > 0.25 else config.RED,
             (
                 int(self.x - 10 - offset.x),
-                int(self.y - self.radius - 8 - offset.y),
+                int(self.y - self.radius - 12 - offset.y),
                 int(20 * hp_pct),
                 4,
             ),
