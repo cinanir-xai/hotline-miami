@@ -16,8 +16,8 @@ class Entity(ABC):
         self.size = size
         self.rotation = 0.0  # degrees
         self.alive = True
-        self.health = 100
-        self.max_health = 100
+        self.health = 1
+        self.max_health = 1
         
         # Animation state
         self.animation_time = 0.0

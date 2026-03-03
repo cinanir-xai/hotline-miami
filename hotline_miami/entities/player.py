@@ -9,6 +9,7 @@ from .entity import Entity
 from config import (
     PLAYER_SIZE, PLAYER_SPEED, PLAYER_ACCEL, PLAYER_DECEL,
     PLAYER_ATTACK_RANGE, PLAYER_ATTACK_COOLDOWN, PLAYER_ATTACK_DAMAGE,
+    PLAYER_MAX_HEALTH,
     PUNCH_DURATION, PUNCH_EXTEND_DISTANCE, Colors,
     SCREEN_WIDTH, SCREEN_HEIGHT
 )
@@ -38,10 +39,16 @@ class Player(Entity):
         self.bob_offset = 0.0
         self.arm_extension = 0.0
         
+        # Health
+        self.max_health = PLAYER_MAX_HEALTH
+        self.health = PLAYER_MAX_HEALTH
+
         # Visual
         self.head_radius = 14
-        self.shoulder_width = 28
-        self.shoulder_height = 18
+        self.shoulder_width = 30
+        self.shoulder_height = 20
+        self.neck_offset = 3
+        self.hand_radius = 4
         
     def set_punch_callback(self, callback: Callable):
         """Set callback for punch effects."""
@@ -149,8 +156,8 @@ class Player(Entity):
         self.draw_shadow(surface, camera_offset, radius=16, alpha=50)
         
         # Calculate positions
-        head_center = Vector2(pos.x, pos.y - 8 + self.bob_offset) + self.facing * 2
-        shoulder_y = pos.y + 5 + self.bob_offset * 0.5
+        head_center = Vector2(pos.x, pos.y - 9 + self.bob_offset) + self.facing * 2
+        shoulder_y = pos.y + 6 + self.bob_offset * 0.5
         
         # Get arm positions based on facing direction
         arm_offset = self._get_arm_offsets(pos, shoulder_y)
@@ -160,6 +167,9 @@ class Player(Entity):
         
         # Draw shoulders/body
         self._draw_shoulders(surface, pos, shoulder_y)
+        
+        # Draw neck
+        self._draw_neck(surface, pos, shoulder_y, head_center)
         
         # Draw head
         self._draw_head(surface, head_center)
@@ -261,6 +271,19 @@ class Player(Entity):
         ]
         pygame.draw.lines(surface, Colors.JACKET_DARK, False, collar_points, 2)
     
+    def _draw_neck(self, surface: pygame.Surface, pos: Vector2, shoulder_y: float,
+                   head_center: Vector2):
+        """Draw neck connecting head and shoulders."""
+        neck_width = 8
+        neck_height = 6
+        neck_rect = pygame.Rect(
+            head_center.x - neck_width / 2,
+            shoulder_y - neck_height / 2 - self.neck_offset,
+            neck_width,
+            neck_height
+        )
+        pygame.draw.ellipse(surface, Colors.SKIN_MID, neck_rect)
+
     def _draw_head(self, surface: pygame.Surface, head_center: Vector2):
         """Draw the head with detailed features from top-down view."""
         # Head base (skin)
@@ -273,6 +296,15 @@ class Player(Entity):
         
         # Draw head with slight oval shape (slightly taller than wide)
         pygame.draw.ellipse(surface, Colors.SKIN_LIGHT, head_rect)
+        
+        # Subtle head shading to add depth
+        shade_rect = pygame.Rect(
+            head_center.x - self.head_radius + 2,
+            head_center.y - self.head_radius + 2,
+            self.head_radius * 2 - 4,
+            self.head_radius * 2 - 4
+        )
+        pygame.draw.ellipse(surface, Colors.SKIN_MID, shade_rect)
         
         # Face direction indicator (nose/chin shadow area)
         facing_angle = angle_from_vec(self.facing)
@@ -334,7 +366,6 @@ class Player(Entity):
                               (detail_x - 2, detail_y - 2, 4, 4))
         
         # Hairline/forehead shadow
-        forehead_vec = vec_from_angle(facing_angle, self.head_radius * 0.6)
         pygame.draw.arc(surface, hair_dark,
                        (head_center.x - self.head_radius, head_center.y - self.head_radius,
                         self.head_radius * 2, self.head_radius * 2),
@@ -394,7 +425,7 @@ class Player(Entity):
     
     def _draw_arms(self, surface: pygame.Surface, arm_offset: dict, behind: bool):
         """Draw arms."""
-        arm_width = 8
+        arm_width = 9
         arm_length = 12
         
         for hand, arm_pos in arm_offset.items():
@@ -428,8 +459,8 @@ class Player(Entity):
                                                  arm_length * 0.3 + self.arm_extension * 0.3)
                 
                 hand_pos = (arm_pos.x + hand_offset.x, arm_pos.y + hand_offset.y)
-                pygame.draw.circle(surface, Colors.SKIN_MID, hand_pos, 4)
+                pygame.draw.circle(surface, Colors.SKIN_MID, hand_pos, self.hand_radius)
                 
                 # Fist detail when attacking
                 if self.is_attacking and hand == self.attack_hand:
-                    pygame.draw.circle(surface, Colors.SKIN_LIGHT, hand_pos, 3)
+                    pygame.draw.circle(surface, Colors.SKIN_LIGHT, hand_pos, self.hand_radius - 1)

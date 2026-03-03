@@ -5,8 +5,9 @@ import sys
 from pygame.math import Vector2
 
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, GAME_TITLE, Colors
-from core import Camera, InputHandler, GroundRenderer, ParticleSystem
-from entities import Player
+import math
+from core import Camera, InputHandler, GroundRenderer, ParticleSystem, draw_health, SimpleRoom
+from entities import Player, Enemy
 
 
 class Game:
@@ -34,9 +35,37 @@ class Game:
         self.player.set_punch_callback(self.particle_system.spawn_punch_effect)
         self.camera.set_target(self.player)
         
+        # Map
+        self.room = SimpleRoom(self.player.position, width=900, height=600, door_width=140)
+        
         # Entity lists for future expansion
         self.entities = []
+        self.enemies = []
+        self._spawn_enemies(5)
         
+    def _spawn_enemies(self, count: int):
+        """Spawn enemies around the player."""
+        import random
+        for _ in range(count):
+            angle = random.uniform(0, 360)
+            distance = random.uniform(220, 420)
+            offset = Vector2(
+                math.cos(math.radians(angle)) * distance,
+                math.sin(math.radians(angle)) * distance
+            )
+            enemy = Enemy(self.player.position.x + offset.x, self.player.position.y + offset.y)
+            enemy.set_target(self.player)
+            enemy.set_attack_callback(self._enemy_attack)
+            self.enemies.append(enemy)
+
+    def _enemy_attack(self, enemy: Enemy):
+        """Handle enemy attacks on player."""
+        if not self.player.alive:
+            return
+        # Apply damage if in range at attack moment
+        if enemy.position.distance_to(self.player.position) <= 55:
+            self.player.take_damage(1)
+
     def run(self):
         """Main game loop."""
         self.running = True
@@ -84,8 +113,14 @@ class Game:
             if entity.alive:
                 entity.update(dt)
         
+        # Update enemies
+        for enemy in self.enemies:
+            if enemy.alive:
+                enemy.update(dt)
+        
         # Remove dead entities
         self.entities = [e for e in self.entities if e.alive]
+        self.enemies = [e for e in self.enemies if e.alive]
         
         # Update particles/effects
         self.particle_system.update(dt)
@@ -101,8 +136,11 @@ class Game:
         # Draw ground
         self.ground.draw(self.screen, camera_offset)
         
+        # Draw room walls
+        self.room.draw(self.screen, camera_offset)
+        
         # Draw entities (sorted by Y for depth)
-        all_entities = [self.player] + self.entities
+        all_entities = [self.player] + self.entities + self.enemies
         all_entities.sort(key=lambda e: e.position.y)
         
         for entity in all_entities:
@@ -126,10 +164,9 @@ class Game:
         fps_text = font.render(f'FPS: {fps}', True, Colors.WHITE)
         self.screen.blit(fps_text, (10, 10))
         
-        # Controls hint
-        hint_text = font.render('WASD: Move | Mouse: Aim | Click: Punch | ESC: Quit', 
-                               True, Colors.WHITE)
-        self.screen.blit(hint_text, (10, SCREEN_HEIGHT - 30))
+        # Player health hearts (top right)
+        draw_health(self.screen, self.player.health, self.player.max_health, Vector2(SCREEN_WIDTH - 10, 10))
+        
 
 
 def main():
